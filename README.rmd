@@ -1,0 +1,48 @@
+---
+title: "Financial Econometrics 871 Project"
+author: "Andrew Hyde"
+date: '2023-01-10'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+
+rm(list = ls()) # Clean your environment:
+gc() # garbage collection - It can be useful to call gc after a large object has been removed, as this may prompt R to return memory to the operating system.
+library(tidyverse)
+list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
+
+```
+
+
+# How to get started
+```{r, eval=F, echo=T} 
+# eval=F and echo=T, as i want to see the code but I don't want it to run again
+# create a Texevier project
+
+Texevier::create_template(
+    directory = "C:/Masters Economics/Fin Metrics/Fin_Metrics_Project",
+            template_name = "Fin_Metrics_Project", build_project = TRUE, open_project = FALSE)
+
+```
+
+
+# Question 1:
+
+```{r}
+# read in the data
+library(tidyverse)
+data_alsi <- read_rds("data/Alsi_Returns.rds")
+
+# determine which sectors are included in the data set
+data_alsi %>% select(Sector) %>% 
+    unique()
+
+```
+
