@@ -10,7 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-
 ```{r}
 
 rm(list = ls()) # Clean your environment:
@@ -35,14 +34,87 @@ Texevier::create_template(
 
 # Question 1:
 
-```{r}
+```{r include=FALSE}
+
 # read in the data
 library(tidyverse)
 data_alsi <- read_rds("data/Alsi_Returns.rds")
 
+# Remove the 'SJ' and 'Equity' from Tickers
+data_alsi$Tickers <- gsub("SJ|Equity", "", data_alsi$Tickers)
+
 # determine which sectors are included in the data set
-data_alsi %>% select(Sector) %>% 
+data_alsi %>% 
+    select(Sector) %>%
     unique()
 
+# There are 14 REITs included in this data set
+data_alsi %>% 
+    filter(Sector == "Property") %>%
+    arrange(date, Tickers) %>% 
+    select(Tickers)
+    unique()
+        
+    
+# some wrangling to determine if the J433 sums to 1 for an arbitrary date
+# can set date to any week date
+# there for can make use of na.omit or set NAs to zero for the weights column 'J433'
+# Which is tested below
+data_alsi %>% filter(date == "2010-02-03") %>% 
+    select(date, Tickers, Return, J433, Sector) %>% 
+    na.omit(J433) %>% 
+    mutate(sum(J433))
+
+
 ```
+
+I make use of the tidyverse package in to wrangle the data into a usable format to conduct the analysis. The task here is to remove the property stocks from the Alsi_Returns data.
+View the historic performance of property stocks.
+
+```{r}
+# create a data set where property stocks have been removed from the Alsi_Returns data and re-weighted.
+
+data_alsi_less_reit <- data_alsi %>% 
+    filter(Sector != "Property") %>%
+    select(date, Tickers, Return, J433, Sector) %>% 
+    na.omit(J433) %>% # remove observations that don't have weights i.e. NA
+    arrange(date, Tickers) %>% 
+    mutate(weights = J433/sum(J433)) %>%
+    mutate(weighted_return = Return * weights) %>% # re-weight ALSI less property stocks
+    group_by(date) %>% 
+    mutate(daily_weighted_returns = sum(weighted_return)) %>% 
+    distinct(., date, .keep_all = TRUE) %>% 
+    mutate(Ticker = "ALSI") %>% 
+    select(date, Ticker, daily_alsi_returns)
+
+# add individual property stock and their weighted returns to perform DCC
+property_returns <- data_alsi %>%
+    filter(Sector == "Property") %>%
+    mutate(Ticker = Tickers) %>% 
+    select(date, Ticker, Return, J433) %>% 
+    na.omit(J433) %>% # remove observations that don't have weights i.e. NA
+    arrange(date, Ticker) %>% 
+    mutate(daily_weighted_returns = Return * J433) %>% 
+    select(date, Ticker, daily_weighted_returns)
+
+# graph the REIT returns by stock
+
+    
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
