@@ -7,23 +7,20 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-```
-
-
-```{r}
 
 rm(list = ls()) # Clean your environment:
 gc() # garbage collection - It can be useful to call gc after a large object has been removed, as this may prompt R to return memory to the operating system.
-library(tidyverse)
-list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 
 ```
 
 
-# How to get started
-```{r, eval=F, echo=T} 
-# eval=F and echo=T, as i want to see the code but I don't want it to run again
-# create a Texevier project
+# Setting up
+
+I begin my project by cleaning my environment and loading the necessary functions to be used in order to 
+
+I make use of the 'Texevier' package to create the project
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 
 Texevier::create_template(
     directory = "C:/Masters Economics/Fin Metrics/Fin_Metrics_Project",
@@ -31,86 +28,281 @@ Texevier::create_template(
 
 ```
 
+I then load the packages to used in this analysis.
+I make use of the 'tidyverse' to clean and wrangle the data as well as perform visualization.
 
-# Question 1:
+```{r message=FALSE, warning=FALSE, include=FALSE}
 
-```{r include=FALSE}
+# load pacakges to be used in the analysis
+library(tidyverse)
+
+
+
+```
+
+# Import the data
+
+I read in the Alsi_Returns data and remove the words 'SJ' and 'Equity' from Tickers column to neaten up the data. Next, I view that data noting the characteristics of the data such a date range and the various columns of information.
+
+I do notice that there are Tickers with missing values and some that have not been included in the ALSI as they have zero weights.
+
+I log the data before performing imputing the missing values in the data set as I anticipate that it will result in NA/NaN/-Inf. The 'impute_missing_values' function can address Nas and Nan, so I will set Returns with -Inf to zero.
+
+Next, I source in all the functions to be used to conduct the analysis. 
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
 
 # read in the data
-library(tidyverse)
 data_alsi <- read_rds("data/Alsi_Returns.rds")
-
+# there are many NAs/NaNs that could pose a problem when using the mGARCH model
+# therefore I log the Returns before imputing missing values i.e. NA/NaN
+data_alsi <- data_alsi %>% mutate(Return = log(Return)) %>% 
+    select(date, Tickers, Return, J433, Sector) %>% 
+    arrange(date, Tickers)
 # Remove the 'SJ' and 'Equity' from Tickers
 data_alsi$Tickers <- gsub("SJ|Equity", "", data_alsi$Tickers)
+# always view the data before starting with the analysis
+# replace '-Inf' with NA, so that a value is imputed when the 'impute_missig_value' fucntion is run
+data_alsi[data_alsi == -Inf] <- NA
+
+
+# source in fuctions
+list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
+
+```
+
+## Data Insights
+
+I make use of the dplyr package to determine how many unique sectors are in the data set and to determine how many unique property stocks or REITS are included in the data set and if they change over time, by arbitrarily entering dates within the data's range.
+
+If find that from 2005 to 2022, the number of REITS changes over time. My next step is therefore to plot the data where each property ticker is plotted in it's own panel. To do this I make use of 'facet_wrap' in the package 'ggplot2'
+
+
+```{r include=FALSE}
 
 # determine which sectors are included in the data set
 data_alsi %>% 
     select(Sector) %>%
     unique()
 
-# There are 14 REITs included in this data set
-data_alsi %>% 
+# input any date with in the data range to determine how many unique property stocks there are and if this changes over time
+data_alsi %>% filter(date == "2013-02-03") %>%
     filter(Sector == "Property") %>%
     arrange(date, Tickers) %>% 
-    select(Tickers)
+    group_by(Tickers) %>%
+    select(date, Tickers) %>% 
     unique()
-        
+
+# count the number of NAs or missing values in the data
+data_alsi %>% 
+    select(date, Tickers, Return, J433) %>% 
+    group_by(Tickers) %>%
+    select(date, Tickers) %>% 
+    unique()
     
 # some wrangling to determine if the J433 sums to 1 for an arbitrary date
 # can set date to any week date
 # there for can make use of na.omit or set NAs to zero for the weights column 'J433'
 # Which is tested below
-data_alsi %>% filter(date == "2010-02-03") %>% 
+data_alsi %>% filter(date == "2012-02-03") %>% 
     select(date, Tickers, Return, J433, Sector) %>% 
     na.omit(J433) %>% 
-    mutate(sum(J433))
+    mutate(sum(J433)) 
 
 
 ```
 
-I make use of the tidyverse package in to wrangle the data into a usable format to conduct the analysis. The task here is to remove the property stocks from the Alsi_Returns data.
-View the historic performance of property stocks.
+I make use of the tidyverse package in to wrangle the data into a usable format to conduct the analysis. The task here is to remove the property stocks from the Alsi_Returns data, so I can calculate the daily returns for the ALSI less REITs. Once I have the daily weighted performance of the AlSI less REITS I will combine these daily returns with the daily returns data of the REITs. This is done so a comparison of individual property stocks can be drawn with the ALSI equities.
+
+Missing values poses a small problem to deal with, however, it won't be as simple as imputing all the values for the complete ALSI. The reason being is that there appears to be many missing values, some Tickers/equities did not exist on the JSE at the point of measurement or were not included in the ALSI, to impute values for all equities in the index, normal and REITs, would give the REIT observations properties of the other equities and vice versa and, lastly, across time the number of REITs included in the index changes and there are many instances of REITs moving in and out of the index.
+
+One cannot impute missing values for the entire data set together, especially given that the purpose of this study is to examine the correlation of property stocks with rest of the ALSI. The approach I am taking is to separate the property stocks from the rest of the ALSI as discussed and then plot out the all the property stocks across time in the data set and determine which have sufficiently complete returns observations that I may impute accurate values that have a similar distributions, so to capture the properties of these property stocks. Once, I have determined which REITS to include I will impute the missing for rest of the ALSI index and then combine the data to begin the DCC or mGARCH model.
+
+# Seperate and plot the REITs data
 
 ```{r}
-# create a data set where property stocks have been removed from the Alsi_Returns data and re-weighted.
 
-data_alsi_less_reit <- data_alsi %>% 
-    filter(Sector != "Property") %>%
-    select(date, Tickers, Return, J433, Sector) %>% 
-    na.omit(J433) %>% # remove observations that don't have weights i.e. NA
-    arrange(date, Tickers) %>% 
-    mutate(weights = J433/sum(J433)) %>%
-    mutate(weighted_return = Return * weights) %>% # re-weight ALSI less property stocks
-    group_by(date) %>% 
-    mutate(daily_weighted_returns = sum(weighted_return)) %>% 
-    distinct(., date, .keep_all = TRUE) %>% 
-    mutate(Ticker = "ALSI") %>% 
-    select(date, Ticker, daily_alsi_returns)
+graph_1 <- graph_1_reit_func(df_data = data_combined_ALSI_REIT,
+                title = "JSE listed REITs over time ",
+                subtitle = "",
+                caption = "Note how many REITs have complete data sets",
+                xlabel = "",
+                ylabel = "")
 
-# add individual property stock and their weighted returns to perform DCC
-property_returns <- data_alsi %>%
-    filter(Sector == "Property") %>%
-    mutate(Ticker = Tickers) %>% 
-    select(date, Ticker, Return, J433) %>% 
-    na.omit(J433) %>% # remove observations that don't have weights i.e. NA
-    arrange(date, Ticker) %>% 
-    mutate(daily_weighted_returns = Return * J433) %>% 
-    select(date, Ticker, daily_weighted_returns)
+graph_1
 
-# graph the REIT returns by stock
+```
 
+From the graph above one can see that can see that there are only a few listed REITs that have a sufficient number of observations to offer insight into the correlation between between REITs and the rest of the ALSI.
+
+I then proceed to select the following Tickers to include in the study.
+REITs to include: EMI, GRT, HYP, RDF, RES, SAC.
+
+Next, I filter the ALSI Property data for the REITs listed above and impute the missing values in this filtered data.
+
+# Impute missing values: Property equities
+
+```{r}
+
+# # add individual property stock and their weighted returns to perform DCC
+# property_returns <- data_alsi %>%
+#         filter(Sector == "Property") %>%
+#         select(date, Tickers, Return, J433, Sector) %>%
+#         na.omit(J433) %>% # remove observations that don't have weights i.e. NA
+#         arrange(date, Tickers) %>%
+#         mutate(daily_weighted_returns = Return * J433) %>%
+#         select(date, Tickers, daily_weighted_returns) # %>%
+#         spread(Tickers, daily_weighted_returns)
+
+
+# Now impute missing values using the 'impute_missing_values' function
+imputed_REIT_returns_spread <- impute_missing_returns(
     
+    return_mat = data_alsi %>%
+        filter(Sector == "Property") %>%
+        select(date, Tickers, Return) %>%
+        spread(Tickers, Return), 
+        
+    impute_returns_method = "Drawn_Distribution_Own")
+
+# select the columns that correspond to the following REITs equities.
+# REITs to include: EMI, GRT, HYP, RDF, RES, SAC
+imputed_REIT_returns_spread <- imputed_REIT_returns_spread[, c(1,13,18,25,29,42,44,48)]
+# Remember to include the date column
+# the dplyr func 'filter' nor the 'select' (once spread) did not work
+# the therfore diverted to base R to filter for the REITs that had data for decade
+
 ```
 
 
+# graph the performance of the REITS
+```{r}
+
+
+```
+
+# Impute missing values: ALSI less REITs
+
+```{r}
+
+# create a data set where property stocks have been removed from the Alsi_Returns data and re-weighted.
+# Now impute missing values using the 'impute_missing_values' function
+
+imputed_ALSI_returns_spread <- impute_missing_returns(
+    
+    return_mat = data_alsi %>% 
+        filter(Sector != "Property") %>%
+        select(date, Tickers, Return) %>% 
+        #na.omit(J433) %>% # remove observations that don't have weights i.e. NA
+        arrange(date) %>% 
+        #mutate(weights = J433/sum(J433)) %>%
+        #mutate(weighted_return = Return * weights) %>% # re-weight ALSI less property stocks
+        #group_by(date) %>% 
+        #mutate(Return = sum(weighted_return)) %>% 
+        #distinct(., date, .keep_all = T) %>% 
+        #mutate(Tickers = "ALSI") %>% 
+        select(date, Tickers, Return) %>% 
+        spread(Tickers, Return),
+        
+    impute_returns_method = "Drawn_Distribution_Collective")
+
+
+        
+
+```
+
+
+# Combine the data
+
+I now use the imputed data for the ALSI less REITs and make it tidy by placing the data into 3 columns (date, Tickers, Return). Next wrangle the data to calculate average daily returns of teh ALSI less REITs.
+
+I now want to bind the rows of the weighted returns of the ALSI with the individual property stocks that had previously been removed separated to impute the missing values. This will allow for correlation comparisons with individual property stocks with the broader performance with the ALSI equities for the other sectors.
+
+
+```{r}
+
+# gather the imputed, spread data and make it tidy
+
+# REITs
+imputed_REIT_returns_tidy <- imputed_REIT_returns_spread %>% 
+    gather(Tickers, Returns, -date) %>% 
+    arrange(date) %>%
+    select(date, Tickers, Returns)
 
 
 
+# ALSI less REITs
+imputed_ALSI_returns_tidy <- imputed_ALSI_returns_spread %>% 
+    gather(Tickers, Return, -date) %>% 
+    arrange(date) %>%
+    group_by(date) %>% # group_by date so summation will be calculated for each Tciker for the same date
+    mutate(Returns = sum(Return)) %>% 
+    distinct(., date, .keep_all = TRUE) %>% # to select a unique date row
+    mutate(Tickers = "ALSI") %>% 
+    select(date, Tickers, Returns)
+
+# Bind the ALSI weighted return daily data (less property stocks)
+# with the individual property stocks to be use for the DCC model
+# Log and scale the data to align with statistical assumptions/principles, so that accurate inferences can be made
+
+combined_data_ALSI_REIT <- bind_rows(imputed_ALSI_returns_tidy,
+                                     imputed_REIT_returns_tidy) #%>%
+
+#################
+#   FIGURE OUT
+##################
+    mutate(log_return = log(Returns)) %>% # log the data
+    mutate(log_scaled_weighted_return = # scale the logged weighted daily returns
+            log_return - mean(log_return, na.rm = F)) %>%
+    select(date, Ticker, log_scaled_weighted_return) %>%
+    mutate(Return = log_scaled_weighted_return) %>% 
+    arrange(date) %>%
+    filter(date >= as.Date("2012-01-01") & date <= as.Date("2022-10-31")) %>% 
+        spread(Tickers, Return)
+
+# save the data as a backup
+saveRDS(combined_data_ALSI_REIT, file = "data/my_data.rds")
+
+################################################################################
+# CODE THAT WAS BUILT EARLIER AND MAY BE USEFUL LATER
+################################################################################
+# data_combined_ALSI_REIT <- bind_rows(data_alsi_less_reit, property_returns) %>% 
+#     mutate(include = ifelse(daily_weighted_returns > 0, "Include", "Exclude")) %>%
+#     filter(include == "Include") %>%
+#     mutate(log_return = log(daily_weighted_returns)) %>% # log the data 
+#     mutate(log_scaled_weighted_return = # scale the logged weighted daily returns
+#             log_return - mean(log_return, na.rm = F)) %>% 
+#     select(date, Ticker, log_scaled_weighted_return) %>% 
+#     arrange(date) %>% 
+#     filter(date >= as.Date("2012-01-01") & date <= as.Date("2022-10-31")) %>% 
+#     spread(Tickers, log_scaled_weighted_return)
 
 
 
+```
 
 
+# DCC Model multivariate GARCH model (Time varying correlation)
+
+I follow the practical code closely to render the model. I amend code and nested functions inside one another to keep the working document neat. I plot the estimates of volatility for each series from from 'dccPre'.
+
+```{r message=FALSE, warning=FALSE}
+
+# use dccPre to fit the univariate GARCH models to each series in the data frame of returns.
+# Let's select a VAR order of zero for the mean equation, and use the mean of each series.
+
+# Then, for every series, a standard univariate GARCH(1,1) is run - giving us:
+# et and sigmat, which is then used to calculate the standardized resids, zt.
+# zt is used in DCC calcs after.
+
+# SEE: q6_nested_graph_function.R (NESTED FUNC)
+q6_nested_graph_function(df_data)
+
+```
+
+The 'dccPre' function is use to fit the univariate GARCH models to each series in the data and a standard univariate GARCH(1,1) is run which produces the error term and sigma, which is then used to calculate the standardized residuals used in estimate the DCC model.
+
+The DCC model is then run and the estimates of time-varying correlation are produced.
 
 
 
