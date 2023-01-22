@@ -34,9 +34,9 @@ I make use of the 'tidyverse' to clean and wrangle the data as well as perform v
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
 # load pacakges to be used in the analysis
-library(tidyverse)
-
-
+pacman::p_load("tidyverse", "devtools", "rugarch", "rmgarch", 
+    "forecast", "tbl2xts", "lubridate", "PerformanceAnalytics", 
+    "ggthemes", "ks", "MTS", "robustbase")
 
 ```
 
@@ -116,7 +116,7 @@ I make use of the tidyverse package in to wrangle the data into a usable format 
 
 Missing values poses a small problem to deal with, however, it won't be as simple as imputing all the values for the complete ALSI. The reason being is that there appears to be many missing values, some Tickers/equities did not exist on the JSE at the point of measurement or were not included in the ALSI, to impute values for all equities in the index, normal and REITs, would give the REIT observations properties of the other equities and vice versa and, lastly, across time the number of REITs included in the index changes and there are many instances of REITs moving in and out of the index.
 
-One cannot impute missing values for the entire data set together, especially given that the purpose of this study is to examine the correlation of property stocks with rest of the ALSI. The approach I am taking is to separate the property stocks from the rest of the ALSI as discussed and then plot out the all the property stocks across time in the data set and determine which have sufficiently complete returns observations that I may impute accurate values that have a similar distributions, so to capture the properties of these property stocks. Once, I have determined which REITS to include I will impute the missing for rest of the ALSI index and then combine the data to begin the DCC or mGARCH model.
+One cannot impute missing values for the entire data set together, especially given that the purpose of this study is to examine the correlation of property stocks with rest of the ALSI. The approach I am taking is to separate the property stocks from the rest of the ALSI as discussed and then plot out the all the property stocks across time in the data set and determine which have sufficiently complete returns observations that I may impute accurate values that have a similar distributions, so to capture the properties of these property stocks (given that the theory surrounding REITs is that should be uncorrelated to other equities. Once, I have determined which REITS to include I will impute the missing for rest of the ALSI index and then combine the data to begin the DCC or mGARCH model.
 
 # Seperate and plot the REITs data
 
@@ -167,7 +167,7 @@ imputed_REIT_returns_spread <- impute_missing_returns(
 
 # select the columns that correspond to the following REITs equities.
 # REITs to include: EMI, GRT, HYP, RDF, RES, SAC
-imputed_REIT_returns_spread <- imputed_REIT_returns_spread[, c(1,13,18,25,29,42,44,48)]
+imputed_REIT_returns_spread <- imputed_REIT_returns_spread[, c(1,14,19,26,30,43,45,49)]
 # Remember to include the date column
 # the dplyr func 'filter' nor the 'select' (once spread) did not work
 # the therfore diverted to base R to filter for the REITs that had data for decade
@@ -223,45 +223,37 @@ I now want to bind the rows of the weighted returns of the ALSI with the individ
 
 # gather the imputed, spread data and make it tidy
 
-# REITs
-imputed_REIT_returns_tidy <- imputed_REIT_returns_spread %>% 
-    gather(Tickers, Returns, -date) %>% 
-    arrange(date) %>%
-    select(date, Tickers, Returns)
+
+combined_data_ALSI_REIT <- bind_rows(
+        # REITs
+            imputed_REIT_returns_spread %>% 
+                gather(Tickers, Returns, -date) %>% 
+                arrange(date) %>%
+                select(date, Tickers, Returns),
+            
+        # ALSI less REITs
+            imputed_ALSI_returns_spread %>% 
+                gather(Tickers, Return, -date) %>% 
+                arrange(date) %>%
+                group_by(date) %>% # group_by date so summation will be calculated for each Tciker for the same date
+                mutate(Returns = sum(Return)) %>% 
+                distinct(., date, .keep_all = TRUE) %>% # to select a unique date row
+                mutate(Tickers = "ALSI") %>% 
+                select(date, Tickers, Returns)
+                        
+        ) %>% mutate(Return = # scale the log scaled daily returns
+                    Returns - mean(Returns, na.rm = F)) %>%
+        
+            select(date, Tickers, Return) %>%
+                mutate(Return = Return) %>% 
+                    arrange(date) %>%
+    
+                filter(date >= as.Date("2011-01-01") & date <= as.Date("2022-10-31")) %>% 
+                    spread(Tickers, Return)
 
 
-
-# ALSI less REITs
-imputed_ALSI_returns_tidy <- imputed_ALSI_returns_spread %>% 
-    gather(Tickers, Return, -date) %>% 
-    arrange(date) %>%
-    group_by(date) %>% # group_by date so summation will be calculated for each Tciker for the same date
-    mutate(Returns = sum(Return)) %>% 
-    distinct(., date, .keep_all = TRUE) %>% # to select a unique date row
-    mutate(Tickers = "ALSI") %>% 
-    select(date, Tickers, Returns)
-
-# Bind the ALSI weighted return daily data (less property stocks)
-# with the individual property stocks to be use for the DCC model
-# Log and scale the data to align with statistical assumptions/principles, so that accurate inferences can be made
-
-combined_data_ALSI_REIT <- bind_rows(imputed_ALSI_returns_tidy,
-                                     imputed_REIT_returns_tidy) #%>%
-
-#################
-#   FIGURE OUT
-##################
-    mutate(log_return = log(Returns)) %>% # log the data
-    mutate(log_scaled_weighted_return = # scale the logged weighted daily returns
-            log_return - mean(log_return, na.rm = F)) %>%
-    select(date, Ticker, log_scaled_weighted_return) %>%
-    mutate(Return = log_scaled_weighted_return) %>% 
-    arrange(date) %>%
-    filter(date >= as.Date("2012-01-01") & date <= as.Date("2022-10-31")) %>% 
-        spread(Tickers, Return)
-
-# save the data as a backup
-saveRDS(combined_data_ALSI_REIT, file = "data/my_data.rds")
+# save the combined data as a backup
+saveRDS(combined_data_ALSI_REIT, file = "data/combined_alsi_data.rds")
 
 ################################################################################
 # CODE THAT WAS BUILT EARLIER AND MAY BE USEFUL LATER
@@ -297,6 +289,8 @@ I follow the practical code closely to render the model. I amend code and nested
 
 # SEE: q6_nested_graph_function.R (NESTED FUNC)
 q6_nested_graph_function(df_data)
+
+
 
 ```
 
