@@ -53,14 +53,18 @@ Next, I source in all the functions to be used to conduct the analysis.
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
 # read in the data
-data_alsi <- read_rds("data/Alsi_Returns.rds")
+data_ALSI_returns <- read_rds("data/Alsi_Returns.rds")
+# Remove the 'SJ' and 'Equity' from Tickers
+data_ALSI_returns$Tickers <- gsub("SJ|Equity", "", data_ALSI_returns$Tickers)
 # there are many NAs/NaNs that could pose a problem when using the mGARCH model
 # therefore I log the Returns before imputing missing values i.e. NA/NaN
-data_alsi <- data_alsi %>% mutate(Return = log(Return)) %>% 
-    select(date, Tickers, Return, J433, Sector) %>% 
-    arrange(date, Tickers)
-# Remove the 'SJ' and 'Equity' from Tickers
-data_alsi$Tickers <- gsub("SJ|Equity", "", data_alsi$Tickers)
+data_alsi <- data_ALSI_returns %>% 
+    mutate(Weighted_Returns = Return * J433) %>% 
+    select(date, Tickers, Weighted_Returns, Sector, J433) %>% 
+    mutate(Return = log(Weighted_Returns)) %>% 
+    arrange(date, Tickers) 
+    #filter(date >= as.Date("2012-01-01") & date <= as.Date("2022-10-31"))
+
 # always view the data before starting with the analysis
 # replace '-Inf' with NA, so that a value is imputed when the 'impute_missig_value' fucntion is run
 data_alsi[data_alsi == -Inf] <- NA
@@ -153,24 +157,32 @@ Next, I filter the ALSI Property data for the REITs listed above and impute the 
 #         mutate(daily_weighted_returns = Return * J433) %>%
 #         select(date, Tickers, daily_weighted_returns) # %>%
 #         spread(Tickers, daily_weighted_returns)
+data_alsi_REIT <- data_alsi %>%
+        filter(Sector == "Property") %>%
+        select(date, Tickers, Return) %>%
+        spread(Tickers, Return)
 
+# select the columns that correspond to the following REITs equities.
+# REITs to include: CCO, EMI, GRT, HYP, RDF, RES, SAC
+data_alsi_REIT_red<- data_alsi_REIT[, c(1,14,19,26,30,45,47,52)]
+# Remember to include the date column
+# the dplyr func 'filter' nor the 'select' (once spread) did not work
+# the therfore diverted to base R to filter for the REITs that had data for decade
+
+# make tidy format once again
+data_alsi_REIT_reduced <- data_alsi_REIT_red %>% 
+                            gather(Tickers, Return, -date)
 
 # Now impute missing values using the 'impute_missing_values' function
 imputed_REIT_returns_spread <- impute_missing_returns(
     
-    return_mat = data_alsi %>%
-        filter(Sector == "Property") %>%
+    return_mat = data_alsi_REIT_reduced %>%
         select(date, Tickers, Return) %>%
-        spread(Tickers, Return), 
+        spread(Tickers, Return),
         
     impute_returns_method = "Drawn_Distribution_Own")
 
-# select the columns that correspond to the following REITs equities.
-# REITs to include: EMI, GRT, HYP, RDF, RES, SAC
-imputed_REIT_returns_spread <- imputed_REIT_returns_spread[, c(1,14,19,26,30,43,45,49)]
-# Remember to include the date column
-# the dplyr func 'filter' nor the 'select' (once spread) did not work
-# the therfore diverted to base R to filter for the REITs that had data for decade
+
 
 ```
 
@@ -220,6 +232,11 @@ I now want to bind the rows of the weighted returns of the ALSI with the individ
 
 
 ```{r}
+################################################################################
+
+#    EXTRA CODE: USE IN THE 'COMBINED NESTED FUNC'
+
+################################################################################
 
 # gather the imputed, spread data and make it tidy
 
@@ -276,7 +293,7 @@ saveRDS(combined_data_ALSI_REIT, file = "data/combined_alsi_data.rds")
 
 # DCC Model multivariate GARCH model (Time varying correlation)
 
-I follow the practical code closely to render the model. I amend code and nested functions inside one another to keep the working document neat. I plot the estimates of volatility for each series from from 'dccPre'.
+I follow the practical code closely to render the model. I amend code and nested functions inside one another to keep the working document neat. I plot the estimates of volatility for each seriesfrom 'dccPre'.
 
 ```{r message=FALSE, warning=FALSE}
 
@@ -288,9 +305,15 @@ I follow the practical code closely to render the model. I amend code and nested
 # zt is used in DCC calcs after.
 
 # SEE: q6_nested_graph_function.R (NESTED FUNC)
-q6_nested_graph_function(df_data)
+mv_garch_COMBINED_nested_function(df_data)
 
+```
 
+Additionally, I plot the volatility of only the seven REIT equities included in this study.
+
+```{r}
+# volatility of REITs
+mv_garch_REIT_nested_function(df_data)
 
 ```
 
@@ -299,8 +322,162 @@ The 'dccPre' function is use to fit the univariate GARCH models to each series i
 The DCC model is then run and the estimates of time-varying correlation are produced.
 
 
+# CORR GRAPHS: Co-movements
+
+
+The 'dccPre' function is use to fit the univariate GARCH models to each series in the data and a standard univariate GARCH(1,1) is run which produces the error term and sigma, which is then used to calculate the standardized residuals used in estimate the DCC model.
+
+The DCC model is then run and the estimates of time-varying correlation are produced.
+
+```{r message=FALSE, warning=FALSE}
+
+xts_q6_data_combined_use <- data_cleaning_func(df_data)
+
+
+
+DCCPre <- dccPre(xts_q6_data_combined_use, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes <- DCCPre$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages, 
+# once detached can now run dccFit
+# when done then tidyr and dplyr 
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC <- dccFit(StdRes, type="Engle")
+pacman::p_load("tidyverse", "rmsfuns", "fmxdat", "tbl2xts", "broom")
+
+```
+
+
+
+```{r}
+
+graph_rename_func_mv(input_name_1 = "ALSI_",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI",
+                     subtitle = "",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+
+
+```
+
+
+
+## Graph: ALSI with Individual REITS
+
+```{r}
+
+graph_rename_func_mv(input_name_1 = "ALSI_CCO",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and CCO",
+                     subtitle = "",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+
+```
 
 
 
 
+```{r}
+
+graph_rename_func_mv(input_name_1 = "ALSI_EMI",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and EMI",
+                     subtitle = "",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+```
+
+
+
+```{r}
+
+graph_rename_func_mv(input_name_1 = "ALSI_GRT",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and GRT",
+                     subtitle = "",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+```
+
+
+
+```{r}
+
+graph_rename_func_mv(input_name_1 = "ALSI_HYP",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and HYP",
+                     subtitle = "",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+```
+
+
+
+
+```{r}
+
+graph_rename_func_mv(input_name_1 = "ALSI_RES",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and RES",
+                     subtitle = "",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+
+```
+
+
+
+
+```{r}
+
+graph_rename_func_mv(input_name_1 = "ALSI_RDF",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and RDF",
+                     subtitle = "",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+
+```
+
+
+
+
+
+```{r}
+
+graph_rename_func_mv(input_name_1 = "ALSI_SAC",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and SAC",
+                     subtitle = "",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+
+```
+
+
+## Graph: CCO with Individual REITS
+
+```{r}
+
+graph_rename_func_mv(input_name_1 = "CCO.._",
+                     input_name_2 = "CCO.._ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and RDF",
+                     subtitle = "",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+
+```
 

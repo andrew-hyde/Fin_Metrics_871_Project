@@ -68,9 +68,9 @@ mv_garch_REIT_nested_function <- function(df_data) {
     ggplot(Vol %>% gather(Tickers, Sigma, -date)) +
         geom_line(aes(x = date, y = Sigma, colour = Tickers)) +
 
-        labs(title = "Volatility of Returns for the past decade",
-             subtitle = "Different Asset Classes",
-             caption = "Commodities, Equities, Real Estate and Bonds",
+        labs(title = "Volatility of Returns for REITs",
+             subtitle = "From 2012 to 2022",
+             caption = "",
              x = "",
              y = "Sigma") +
 
@@ -79,6 +79,5 @@ mv_garch_REIT_nested_function <- function(df_data) {
 
 }
 
-mv_garch_REIT_nested_function(df_data)
 
 

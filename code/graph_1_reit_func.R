@@ -6,7 +6,7 @@ graph_1_reit_func <- function(df_data, title, subtitle, caption, xlabel, ylabel)
 
 
 # add individual property stock and their weighted returns to perform DCC
-property_returns <- data_alsi %>%
+property_returns <- data_ALSI_returns %>%
         filter(Sector == "Property") %>%
         select(date, Tickers, Return, J433, Sector) %>%
         na.omit(J433) %>% # remove observations that don't have weights i.e. NA

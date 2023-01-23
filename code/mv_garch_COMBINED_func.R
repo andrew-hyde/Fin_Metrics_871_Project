@@ -1,5 +1,5 @@
 
-mv_garch_nested_graph_cleaning_function <- function(df_data) {
+mv_garch_COMBINED_nested_function <- function(df_data) {
 
 
 ################################################################################
@@ -26,7 +26,7 @@ mv_garch_func <- function(df_data){
                 gather(Tickers, Return, -date) %>%
                 arrange(date) %>%
                 group_by(date) %>% # group_by date so summation will be calculated for each Tciker for the same date
-                mutate(Returns = sum(Return)) %>%
+                mutate(Returns = Return/sum(Return)) %>%
                 distinct(., date, .keep_all = TRUE) %>% # to select a unique date row
                 mutate(Tickers = "ALSI") %>%
                 select(date, Tickers, Returns)
@@ -81,9 +81,9 @@ Vol <- mv_garch_func(df_data)
 ggplot(Vol %>% gather(Tickers, Sigma, -date)) +
     geom_line(aes(x = date, y = Sigma, colour = Tickers)) +
 
-    labs(title = "Volatility of Returns for the past decade",
-         subtitle = "Different Asset Classes",
-         caption = "Commodities, Equities, Real Estate and Bonds",
+    labs(title = "Volatility of Returns for ALSI and Individual REITs",
+         subtitle = "From 2012 to 2022",
+         caption = "",
          x = "",
          y = "Sigma") +
 
@@ -92,5 +92,5 @@ ggplot(Vol %>% gather(Tickers, Sigma, -date)) +
 
 }
 
-mv_garch_nested_graph_cleaning_function(df_data)
+
 
