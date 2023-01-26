@@ -26,7 +26,7 @@ mv_garch_func <- function(df_data){
                 gather(Tickers, Return, -date) %>%
                 arrange(date) %>%
                 group_by(date) %>% # group_by date so summation will be calculated for each Tciker for the same date
-                mutate(Returns = Return/sum(Return)) %>%
+                mutate(Returns = mean(Return)) %>%
                 distinct(., date, .keep_all = TRUE) %>% # to select a unique date row
                 mutate(Tickers = "ALSI") %>%
                 select(date, Tickers, Returns)

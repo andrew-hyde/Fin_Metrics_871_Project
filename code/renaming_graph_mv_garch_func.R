@@ -42,11 +42,10 @@ graph_rename_func_mv <- function(input_name_1, input_name_2, title, subtitle, ca
         DCC.TV.Cor <- DCC.TV.Cor %>% gather(Pairs, Rho, -date)
 
 
-
     }
 
     Rhot_use <-
-        renamingdcc(ReturnSeries = xts_q6_data_combined_use,
+        renamingdcc(ReturnSeries = xts_ALSI_data_combined_use,
                     DCC.TV.Cor = DCC$rho.t)
 
 
@@ -67,19 +66,9 @@ graph_rename_func_mv <- function(input_name_1, input_name_2, title, subtitle, ca
         theme(legend.title = element_blank())
 
 
-
     graph
-
 
 }
 
-
-graph_rename_func_mv(input_name_1 = "ALSI_",
-                     input_name_2 = "_ALSI",
-                     title = "Dynamic Conditional Correlations: US_10Yr",
-                     subtitle = "",
-                     caption = "Commodities, Equities, Real Estate and Bonds",
-                     xlabel = "",
-                     ylabel = "Rho")
 
 

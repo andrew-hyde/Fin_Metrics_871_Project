@@ -1,8 +1,7 @@
 ---
-title: "Financial Econometrics 871 Project"
-author: "Andrew Hyde"
-date: '2023-01-10'
-output: html_document
+output:
+  md_document:
+    # variant: markdown_github
 ---
 
 ```{r setup, include=FALSE}
@@ -124,9 +123,20 @@ One cannot impute missing values for the entire data set together, especially gi
 
 # Seperate and plot the REITs data
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 
-graph_1 <- graph_1_reit_func(df_data = data_combined_ALSI_REIT,
+library(tidyverse)
+
+# add individual property stock and their weighted returns to perform DCC
+property_returns <- data_ALSI_returns %>%
+        filter(Sector == "Property") %>%
+        select(date, Tickers, Return, J433, Sector) %>%
+        na.omit(J433) %>% # remove observations that don't have weights i.e. NA
+        arrange(date, Tickers) %>%
+        select(date, Tickers, Return)
+
+
+graph_1 <- graph_1_reit_funcs(df_data = property_returns,
                 title = "JSE listed REITs over time ",
                 subtitle = "",
                 caption = "Note how many REITs have complete data sets",
@@ -140,7 +150,7 @@ graph_1
 From the graph above one can see that can see that there are only a few listed REITs that have a sufficient number of observations to offer insight into the correlation between between REITs and the rest of the ALSI.
 
 I then proceed to select the following Tickers to include in the study.
-REITs to include: EMI, GRT, HYP, RDF, RES, SAC.
+REITs to include: CCO, EMI, GRT, HYP, RDF, RES, SAC.
 
 Next, I filter the ALSI Property data for the REITs listed above and impute the missing values in this filtered data.
 
@@ -148,15 +158,7 @@ Next, I filter the ALSI Property data for the REITs listed above and impute the 
 
 ```{r}
 
-# # add individual property stock and their weighted returns to perform DCC
-# property_returns <- data_alsi %>%
-#         filter(Sector == "Property") %>%
-#         select(date, Tickers, Return, J433, Sector) %>%
-#         na.omit(J433) %>% # remove observations that don't have weights i.e. NA
-#         arrange(date, Tickers) %>%
-#         mutate(daily_weighted_returns = Return * J433) %>%
-#         select(date, Tickers, daily_weighted_returns) # %>%
-#         spread(Tickers, daily_weighted_returns)
+#
 data_alsi_REIT <- data_alsi %>%
         filter(Sector == "Property") %>%
         select(date, Tickers, Return) %>%
@@ -226,69 +228,13 @@ imputed_ALSI_returns_spread <- impute_missing_returns(
 
 # Combine the data
 
-I now use the imputed data for the ALSI less REITs and make it tidy by placing the data into 3 columns (date, Tickers, Return). Next wrangle the data to calculate average daily returns of teh ALSI less REITs.
+I now use the imputed data for the ALSI less REITs and make it tidy by placing the data into 3 columns (date, Tickers, Return). Next wrangle the data to calculate average daily returns of the ALSI less REITs.
 
 I now want to bind the rows of the weighted returns of the ALSI with the individual property stocks that had previously been removed separated to impute the missing values. This will allow for correlation comparisons with individual property stocks with the broader performance with the ALSI equities for the other sectors.
 
-
-```{r}
-################################################################################
-
-#    EXTRA CODE: USE IN THE 'COMBINED NESTED FUNC'
-
-################################################################################
-
-# gather the imputed, spread data and make it tidy
+The data wrangling described above is nested in the function 'mv_garch_COMBINED_nested_function(df_data)' for the estimated volatility.
 
 
-combined_data_ALSI_REIT <- bind_rows(
-        # REITs
-            imputed_REIT_returns_spread %>% 
-                gather(Tickers, Returns, -date) %>% 
-                arrange(date) %>%
-                select(date, Tickers, Returns),
-            
-        # ALSI less REITs
-            imputed_ALSI_returns_spread %>% 
-                gather(Tickers, Return, -date) %>% 
-                arrange(date) %>%
-                group_by(date) %>% # group_by date so summation will be calculated for each Tciker for the same date
-                mutate(Returns = sum(Return)) %>% 
-                distinct(., date, .keep_all = TRUE) %>% # to select a unique date row
-                mutate(Tickers = "ALSI") %>% 
-                select(date, Tickers, Returns)
-                        
-        ) %>% mutate(Return = # scale the log scaled daily returns
-                    Returns - mean(Returns, na.rm = F)) %>%
-        
-            select(date, Tickers, Return) %>%
-                mutate(Return = Return) %>% 
-                    arrange(date) %>%
-    
-                filter(date >= as.Date("2011-01-01") & date <= as.Date("2022-10-31")) %>% 
-                    spread(Tickers, Return)
-
-
-# save the combined data as a backup
-saveRDS(combined_data_ALSI_REIT, file = "data/combined_alsi_data.rds")
-
-################################################################################
-# CODE THAT WAS BUILT EARLIER AND MAY BE USEFUL LATER
-################################################################################
-# data_combined_ALSI_REIT <- bind_rows(data_alsi_less_reit, property_returns) %>% 
-#     mutate(include = ifelse(daily_weighted_returns > 0, "Include", "Exclude")) %>%
-#     filter(include == "Include") %>%
-#     mutate(log_return = log(daily_weighted_returns)) %>% # log the data 
-#     mutate(log_scaled_weighted_return = # scale the logged weighted daily returns
-#             log_return - mean(log_return, na.rm = F)) %>% 
-#     select(date, Ticker, log_scaled_weighted_return) %>% 
-#     arrange(date) %>% 
-#     filter(date >= as.Date("2012-01-01") & date <= as.Date("2022-10-31")) %>% 
-#     spread(Tickers, log_scaled_weighted_return)
-
-
-
-```
 
 
 # DCC Model multivariate GARCH model (Time varying correlation)
@@ -322,20 +268,23 @@ The 'dccPre' function is use to fit the univariate GARCH models to each series i
 The DCC model is then run and the estimates of time-varying correlation are produced.
 
 
+
 # CORR GRAPHS: Co-movements
 
-
 The 'dccPre' function is use to fit the univariate GARCH models to each series in the data and a standard univariate GARCH(1,1) is run which produces the error term and sigma, which is then used to calculate the standardized residuals used in estimate the DCC model.
+
+```{r message=FALSE, warning=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_ALSI_data_combined_use <- data_cleaning_func(df_data)
+
+```
 
 The DCC model is then run and the estimates of time-varying correlation are produced.
 
 ```{r message=FALSE, warning=FALSE}
 
-xts_q6_data_combined_use <- data_cleaning_func(df_data)
-
-
-
-DCCPre <- dccPre(xts_q6_data_combined_use, include.mean = F, p = 0)
+DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = F, p = 0)
 # After saving now the standardized residuals:
 StdRes <- DCCPre$sresi
 # We can now use these sresids to calculate the DCC model.
