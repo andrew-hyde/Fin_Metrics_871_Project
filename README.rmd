@@ -19,7 +19,7 @@ I begin my project by cleaning my environment and loading the necessary function
 
 I make use of the 'Texevier' package to create the project
 
-```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+```{r echo=TRUE, eval=FALSE, message=FALSE, warning=FALSE}
 
 Texevier::create_template(
     directory = "C:/Masters Economics/Fin Metrics/Fin_Metrics_Project",
@@ -30,7 +30,7 @@ Texevier::create_template(
 I then load the packages to used in this analysis.
 I make use of the 'tidyverse' to clean and wrangle the data as well as perform visualization.
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r echo=TRUE, message=FALSE, warning=FALSE}
 
 # load pacakges to be used in the analysis
 pacman::p_load("tidyverse", "devtools", "rugarch", "rmgarch", 
@@ -49,7 +49,7 @@ I log the data before performing imputing the missing values in the data set as 
 
 Next, I source in all the functions to be used to conduct the analysis. 
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r echo=TRUE, message=FALSE, warning=FALSE}
 
 # read in the data
 data_ALSI_returns <- read_rds("data/Alsi_Returns.rds")

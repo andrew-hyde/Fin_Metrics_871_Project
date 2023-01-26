@@ -5,13 +5,22 @@ functions to be used in order to
 
 I make use of the ‘Texevier’ package to create the project
 
+    Texevier::create_template(
+        directory = "C:/Masters Economics/Fin Metrics/Fin_Metrics_Project",
+                template_name = "Fin_Metrics_Project", build_project = TRUE, open_project = FALSE)
+
 I then load the packages to used in this analysis. I make use of the
 ‘tidyverse’ to clean and wrangle the data as well as perform
 visualization.
 
+    # load pacakges to be used in the analysis
+    pacman::p_load("tidyverse", "devtools", "rugarch", "rmgarch", 
+        "forecast", "tbl2xts", "lubridate", "PerformanceAnalytics", 
+        "ggthemes", "ks", "MTS", "robustbase")
+
 # Import the data
 
-I read in the Alsi_Returns data and remove the words ‘SJ’ and ‘Equity’
+I read in the Alsi\_Returns data and remove the words ‘SJ’ and ‘Equity’
 from Tickers column to neaten up the data. Next, I view that data noting
 the characteristics of the data such a date range and the various
 columns of information.
@@ -21,10 +30,31 @@ have not been included in the ALSI as they have zero weights.
 
 I log the data before performing imputing the missing values in the data
 set as I anticipate that it will result in NA/NaN/-Inf. The
-‘impute_missing_values’ function can address Nas and Nan, so I will set
-Returns with -Inf to zero.
+‘impute\_missing\_values’ function can address Nas and Nan, so I will
+set Returns with -Inf to zero.
 
 Next, I source in all the functions to be used to conduct the analysis.
+
+    # read in the data
+    data_ALSI_returns <- read_rds("data/Alsi_Returns.rds")
+    # Remove the 'SJ' and 'Equity' from Tickers
+    data_ALSI_returns$Tickers <- gsub("SJ|Equity", "", data_ALSI_returns$Tickers)
+    # there are many NAs/NaNs that could pose a problem when using the mGARCH model
+    # therefore I log the Returns before imputing missing values i.e. NA/NaN
+    data_alsi <- data_ALSI_returns %>% 
+        mutate(Weighted_Returns = Return * J433) %>% 
+        select(date, Tickers, Weighted_Returns, Sector, J433) %>% 
+        mutate(Return = log(Weighted_Returns)) %>% 
+        arrange(date, Tickers) 
+        #filter(date >= as.Date("2012-01-01") & date <= as.Date("2022-10-31"))
+
+    # always view the data before starting with the analysis
+    # replace '-Inf' with NA, so that a value is imputed when the 'impute_missig_value' fucntion is run
+    data_alsi[data_alsi == -Inf] <- NA
+
+
+    # source in fuctions
+    list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 
 ## Data Insights
 
@@ -35,12 +65,12 @@ arbitrarily entering dates within the data’s range.
 
 If find that from 2005 to 2022, the number of REITS changes over time.
 My next step is therefore to plot the data where each property ticker is
-plotted in it’s own panel. To do this I make use of ‘facet_wrap’ in the
+plotted in it’s own panel. To do this I make use of ‘facet\_wrap’ in the
 package ‘ggplot2’
 
 I make use of the tidyverse package in to wrangle the data into a usable
 format to conduct the analysis. The task here is to remove the property
-stocks from the Alsi_Returns data, so I can calculate the daily returns
+stocks from the Alsi\_Returns data, so I can calculate the daily returns
 for the ALSI less REITs. Once I have the daily weighted performance of
 the AlSI less REITS I will combine these daily returns with the daily
 returns data of the REITs. This is done so a comparison of individual
@@ -71,29 +101,27 @@ to begin the DCC or mGARCH model.
 
 # Seperate and plot the REITs data
 
-``` r
-library(tidyverse)
+    library(tidyverse)
 
-# add individual property stock and their weighted returns to perform DCC
-property_returns <- data_ALSI_returns %>%
-        filter(Sector == "Property") %>%
-        select(date, Tickers, Return, J433, Sector) %>%
-        na.omit(J433) %>% # remove observations that don't have weights i.e. NA
-        arrange(date, Tickers) %>%
-        select(date, Tickers, Return)
+    # add individual property stock and their weighted returns to perform DCC
+    property_returns <- data_ALSI_returns %>%
+            filter(Sector == "Property") %>%
+            select(date, Tickers, Return, J433, Sector) %>%
+            na.omit(J433) %>% # remove observations that don't have weights i.e. NA
+            arrange(date, Tickers) %>%
+            select(date, Tickers, Return)
 
 
-graph_1 <- graph_1_reit_funcs(df_data = property_returns,
-                title = "JSE listed REITs over time ",
-                subtitle = "",
-                caption = "Note how many REITs have complete data sets",
-                xlabel = "",
-                ylabel = "")
+    graph_1 <- graph_1_reit_funcs(df_data = property_returns,
+                    title = "JSE listed REITs over time ",
+                    subtitle = "",
+                    caption = "Note how many REITs have complete data sets",
+                    xlabel = "",
+                    ylabel = "")
 
-graph_1
-```
+    graph_1
 
-![](README_files/figure-markdown_github/unnamed-chunk-5-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-5-1.png)
 
 From the graph above one can see that can see that there are only a few
 listed REITs that have a sufficient number of observations to offer
@@ -108,60 +136,56 @@ impute the missing values in this filtered data.
 
 # Impute missing values: Property equities
 
-``` r
-#
-data_alsi_REIT <- data_alsi %>%
-        filter(Sector == "Property") %>%
-        select(date, Tickers, Return) %>%
-        spread(Tickers, Return)
+    #
+    data_alsi_REIT <- data_alsi %>%
+            filter(Sector == "Property") %>%
+            select(date, Tickers, Return) %>%
+            spread(Tickers, Return)
 
-# select the columns that correspond to the following REITs equities.
-# REITs to include: CCO, EMI, GRT, HYP, RDF, RES, SAC
-data_alsi_REIT_red<- data_alsi_REIT[, c(1,14,19,26,30,45,47,52)]
-# Remember to include the date column
-# the dplyr func 'filter' nor the 'select' (once spread) did not work
-# the therfore diverted to base R to filter for the REITs that had data for decade
+    # select the columns that correspond to the following REITs equities.
+    # REITs to include: CCO, EMI, GRT, HYP, RDF, RES, SAC
+    data_alsi_REIT_red<- data_alsi_REIT[, c(1,14,19,26,30,45,47,52)]
+    # Remember to include the date column
+    # the dplyr func 'filter' nor the 'select' (once spread) did not work
+    # the therfore diverted to base R to filter for the REITs that had data for decade
 
-# make tidy format once again
-data_alsi_REIT_reduced <- data_alsi_REIT_red %>% 
-                            gather(Tickers, Return, -date)
+    # make tidy format once again
+    data_alsi_REIT_reduced <- data_alsi_REIT_red %>% 
+                                gather(Tickers, Return, -date)
 
-# Now impute missing values using the 'impute_missing_values' function
-imputed_REIT_returns_spread <- impute_missing_returns(
-    
-    return_mat = data_alsi_REIT_reduced %>%
-        select(date, Tickers, Return) %>%
-        spread(Tickers, Return),
+    # Now impute missing values using the 'impute_missing_values' function
+    imputed_REIT_returns_spread <- impute_missing_returns(
         
-    impute_returns_method = "Drawn_Distribution_Own")
-```
+        return_mat = data_alsi_REIT_reduced %>%
+            select(date, Tickers, Return) %>%
+            spread(Tickers, Return),
+            
+        impute_returns_method = "Drawn_Distribution_Own")
 
 # graph the performance of the REITS
 
 # Impute missing values: ALSI less REITs
 
-``` r
-# create a data set where property stocks have been removed from the Alsi_Returns data and re-weighted.
-# Now impute missing values using the 'impute_missing_values' function
+    # create a data set where property stocks have been removed from the Alsi_Returns data and re-weighted.
+    # Now impute missing values using the 'impute_missing_values' function
 
-imputed_ALSI_returns_spread <- impute_missing_returns(
-    
-    return_mat = data_alsi %>% 
-        filter(Sector != "Property") %>%
-        select(date, Tickers, Return) %>% 
-        #na.omit(J433) %>% # remove observations that don't have weights i.e. NA
-        arrange(date) %>% 
-        #mutate(weights = J433/sum(J433)) %>%
-        #mutate(weighted_return = Return * weights) %>% # re-weight ALSI less property stocks
-        #group_by(date) %>% 
-        #mutate(Return = sum(weighted_return)) %>% 
-        #distinct(., date, .keep_all = T) %>% 
-        #mutate(Tickers = "ALSI") %>% 
-        select(date, Tickers, Return) %>% 
-        spread(Tickers, Return),
+    imputed_ALSI_returns_spread <- impute_missing_returns(
         
-    impute_returns_method = "Drawn_Distribution_Collective")
-```
+        return_mat = data_alsi %>% 
+            filter(Sector != "Property") %>%
+            select(date, Tickers, Return) %>% 
+            #na.omit(J433) %>% # remove observations that don't have weights i.e. NA
+            arrange(date) %>% 
+            #mutate(weights = J433/sum(J433)) %>%
+            #mutate(weighted_return = Return * weights) %>% # re-weight ALSI less property stocks
+            #group_by(date) %>% 
+            #mutate(Return = sum(weighted_return)) %>% 
+            #distinct(., date, .keep_all = T) %>% 
+            #mutate(Tickers = "ALSI") %>% 
+            select(date, Tickers, Return) %>% 
+            spread(Tickers, Return),
+            
+        impute_returns_method = "Drawn_Distribution_Collective")
 
 # Combine the data
 
@@ -176,7 +200,7 @@ with individual property stocks with the broader performance with the
 ALSI equities for the other sectors.
 
 The data wrangling described above is nested in the function
-‘mv_garch_COMBINED_nested_function(df_data)’ for the estimated
+‘mv\_garch\_COMBINED\_nested\_function(df\_data)’ for the estimated
 volatility.
 
 # DCC Model multivariate GARCH model (Time varying correlation)
@@ -185,93 +209,92 @@ I follow the practical code closely to render the model. I amend code
 and nested functions inside one another to keep the working document
 neat. I plot the estimates of volatility for each seriesfrom ‘dccPre’.
 
-``` r
-# use dccPre to fit the univariate GARCH models to each series in the data frame of returns.
-# Let's select a VAR order of zero for the mean equation, and use the mean of each series.
+    # use dccPre to fit the univariate GARCH models to each series in the data frame of returns.
+    # Let's select a VAR order of zero for the mean equation, and use the mean of each series.
 
-# Then, for every series, a standard univariate GARCH(1,1) is run - giving us:
-# et and sigmat, which is then used to calculate the standardized resids, zt.
-# zt is used in DCC calcs after.
+    # Then, for every series, a standard univariate GARCH(1,1) is run - giving us:
+    # et and sigmat, which is then used to calculate the standardized resids, zt.
+    # zt is used in DCC calcs after.
 
-# SEE: q6_nested_graph_function.R (NESTED FUNC)
-mv_garch_COMBINED_nested_function(df_data)
-```
+    # SEE: q6_nested_graph_function.R (NESTED FUNC)
+    mv_garch_COMBINED_nested_function(df_data)
 
-    ## Sample mean of the returns:  -0.3994083 -0.8001421 0.7963037 -0.1924919 0.8464523 0.05504507 -0.1252145 0.2183139 
+    ## Sample mean of the returns:  -0.4359894 -0.816097 0.8009922 -0.1499985 0.8661694 0.02661527 -0.1251878 0.2229124 
     ## Component:  1 
-    ## Estimates:  1.329662 0.041973 0 
-    ## se.coef  :  0.686947 0.019389 0.498869 
-    ## t-value  :  1.935612 2.164712 0 
+    ## Estimates:  0.817525 0.036139 0.412812 
+    ## se.coef  :  0.784452 0.02253 0.542006 
+    ## t-value  :  1.04216 1.604057 0.761637 
     ## Component:  2 
-    ## Estimates:  0.137567 0 0.887703 
-    ## se.coef  :  0.290326 0.015089 0.224897 
-    ## t-value  :  0.473835 1e-06 3.947145 
+    ## Estimates:  0.204256 0 0.832915 
+    ## se.coef  :  NaN NaN NaN 
+    ## t-value  :  NaN NaN NaN 
     ## Component:  3 
-    ## Estimates:  0.22747 0 0.849408 
-    ## se.coef  :  0.377264 0.009069 0.252319 
-    ## t-value  :  0.602947 1e-06 3.366407 
+    ## Estimates:  0.243877 0 0.836649 
+    ## se.coef  :  0.430106 0.008508 0.289586 
+    ## t-value  :  0.567017 1e-06 2.889123 
     ## Component:  4 
-    ## Estimates:  0.018863 0.009219 0.979289 
-    ## se.coef  :  0.006225 0.002767 0.00413 
-    ## t-value  :  3.030333 3.331662 237.1047 
+    ## Estimates:  0.005396 0.004853 0.991698 
+    ## se.coef  :  0.00188 0.001233 0.000745 
+    ## t-value  :  2.870661 3.936343 1331.394 
     ## Component:  5 
-    ## Estimates:  0.100229 0.004739 0.912629 
-    ## se.coef  :  0.089448 0.007403 0.075438 
-    ## t-value  :  1.120522 0.640092 12.09778 
+    ## Estimates:  0.014443 0.006855 0.980982 
+    ## se.coef  :  0.00439 0.002662 0.00355 
+    ## t-value  :  3.289675 2.575504 276.3269 
     ## Component:  6 
-    ## Estimates:  0.00256 0.0025 0.995881 
-    ## se.coef  :  0.000865 0.000562 0.000197 
-    ## t-value  :  2.959469 4.445303 5057.163 
+    ## Estimates:  0.036717 0.014349 0.963893 
+    ## se.coef  :  0.013937 0.004498 0.010079 
+    ## t-value  :  2.634529 3.190058 95.63708 
     ## Component:  7 
-    ## Estimates:  0.004121 0.007067 0.987339 
-    ## se.coef  :  0.001707 0.002239 0.001695 
-    ## t-value  :  2.41464 3.156464 582.4922 
+    ## Estimates:  0.005254 0.006806 0.986183 
+    ## se.coef  :  0.002062 0.002575 0.002053 
+    ## t-value  :  2.548397 2.642899 480.3592 
     ## Component:  8 
-    ## Estimates:  0.000263 0.019112 0.950509 
-    ## se.coef  :  0.000116 0.005987 0.016859 
-    ## t-value  :  2.261129 3.192375 56.3808
+    ## Estimates:  0.000312 0.029001 0.934104 
+    ## se.coef  :  0.000139 0.008179 0.022127 
+    ## t-value  :  2.24104 3.545985 42.21595
 
-![](README_files/figure-markdown_github/unnamed-chunk-9-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-9-1.png)
 
 Additionally, I plot the volatility of only the seven REIT equities
 included in this study.
 
-``` r
-# volatility of REITs
-mv_garch_REIT_nested_function(df_data)
-```
+    # volatility of REITs
+    mv_garch_REIT_nested_function(df_data)
 
-    ## Sample mean of the returns:  -0.3658912 -0.766625 0.8298208 -0.1589748 0.8799694 0.08856218 -0.09169734 
+    ## Sample mean of the returns:  -0.4019666 -0.7820742 0.835015 -0.1159757 0.9001922 0.06063808 -0.09116497 
     ## Component:  1 
-    ## Estimates:  1.329662 0.041973 0 
-    ## se.coef  :  0.686947 0.019389 0.498869 
-    ## t-value  :  1.935612 2.164712 0 
-    ## Component:  2 
-    ## Estimates:  0.137567 0 0.887703 
-    ## se.coef  :  0.290326 0.015089 0.224897 
-    ## t-value  :  0.473835 1e-06 3.947145 
-    ## Component:  3 
-    ## Estimates:  0.22747 0 0.849408 
-    ## se.coef  :  0.377264 0.009069 0.252319 
-    ## t-value  :  0.602947 1e-06 3.366407 
-    ## Component:  4 
-    ## Estimates:  0.018863 0.009219 0.979289 
-    ## se.coef  :  0.006225 0.002767 0.00413 
-    ## t-value  :  3.030333 3.331662 237.1047 
-    ## Component:  5 
-    ## Estimates:  0.100229 0.004739 0.912629 
-    ## se.coef  :  0.089448 0.007403 0.075438 
-    ## t-value  :  1.120522 0.640092 12.09778 
-    ## Component:  6 
-    ## Estimates:  0.00256 0.0025 0.995881 
-    ## se.coef  :  0.000865 0.000562 0.000197 
-    ## t-value  :  2.959469 4.445303 5057.163 
-    ## Component:  7 
-    ## Estimates:  0.004121 0.007067 0.987339 
-    ## se.coef  :  0.001707 0.002239 0.001695 
-    ## t-value  :  2.414641 3.156474 582.4899
+    ## Estimates:  0.817525 0.036139 0.412812 
+    ## se.coef  :  0.784452 0.02253 0.542006 
+    ## t-value  :  1.04216 1.604057 0.761637
 
-![](README_files/figure-markdown_github/unnamed-chunk-10-1.png)
+    ## Warning in sqrt(diag(fit$cvar)): NaNs produced
+
+    ## Component:  2 
+    ## Estimates:  0.204256 0 0.832915 
+    ## se.coef  :  NaN NaN NaN 
+    ## t-value  :  NaN NaN NaN 
+    ## Component:  3 
+    ## Estimates:  0.243877 0 0.836649 
+    ## se.coef  :  0.430106 0.008508 0.289586 
+    ## t-value  :  0.567017 1e-06 2.889123 
+    ## Component:  4 
+    ## Estimates:  0.005396 0.004853 0.991698 
+    ## se.coef  :  0.00188 0.001233 0.000745 
+    ## t-value  :  2.870661 3.936343 1331.394 
+    ## Component:  5 
+    ## Estimates:  0.014443 0.006855 0.980982 
+    ## se.coef  :  0.00439 0.002662 0.00355 
+    ## t-value  :  3.289675 2.575504 276.3269 
+    ## Component:  6 
+    ## Estimates:  0.036717 0.014349 0.963893 
+    ## se.coef  :  0.013937 0.004498 0.010079 
+    ## t-value  :  2.634529 3.190058 95.63708 
+    ## Component:  7 
+    ## Estimates:  0.005254 0.006806 0.986183 
+    ## se.coef  :  0.002062 0.002575 0.002053 
+    ## t-value  :  2.548397 2.642899 480.3592
+
+![](README_files/figure-markdown_strict/unnamed-chunk-10-1.png)
 
 The ‘dccPre’ function is use to fit the univariate GARCH models to each
 series in the data and a standard univariate GARCH(1,1) is run which
@@ -288,179 +311,153 @@ series in the data and a standard univariate GARCH(1,1) is run which
 produces the error term and sigma, which is then used to calculate the
 standardized residuals used in estimate the DCC model.
 
-``` r
-# Use the cleaning func to warngle data and get into 'xts' format
-xts_ALSI_data_combined_use <- data_cleaning_func(df_data)
-```
+    # Use the cleaning func to warngle data and get into 'xts' format
+    xts_ALSI_data_combined_use <- data_cleaning_func(df_data)
 
 The DCC model is then run and the estimates of time-varying correlation
 are produced.
 
-``` r
-DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = F, p = 0)
-```
+    DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = F, p = 0)
 
     ## Component:  1 
-    ## Estimates:  0.002871 0 0.998131 
-    ## se.coef  :  2.4e-05 NaN NaN 
-    ## t-value  :  118.9039 NaN NaN 
+    ## Estimates:  1.434911 0.028269 0.114422 
+    ## se.coef  :  0.620411 0.017502 0.371222 
+    ## t-value  :  2.312839 1.615157 0.308231 
     ## Component:  2 
-    ## Estimates:  0.036256 0.008604 0.971951 
-    ## se.coef  :  0.015539 0.003616 0.009043 
-    ## t-value  :  2.333277 2.379088 107.4866 
+    ## Estimates:  0.019775 0.007549 0.981983 
+    ## se.coef  :  0.00719 0.002475 0.003698 
+    ## t-value  :  2.750222 3.04972 265.5731 
     ## Component:  3 
-    ## Estimates:  0.063313 0.009501 0.961024 
-    ## se.coef  :  0.033034 0.005641 0.016404 
-    ## t-value  :  1.916623 1.684276 58.58321 
+    ## Estimates:  0.039928 0.013145 0.968123 
+    ## se.coef  :  0.019974 0.004817 0.010638 
+    ## t-value  :  1.999006 2.728806 91.00411 
     ## Component:  4 
-    ## Estimates:  0.011613 0.008935 0.984134 
-    ## se.coef  :  0.003782 0.002065 0.002507 
-    ## t-value  :  3.070848 4.326704 392.5075 
+    ## Estimates:  0.004087 0.005095 0.992304 
+    ## se.coef  :  0.001496 0.001019 0.000636 
+    ## t-value  :  2.73087 4.999766 1559.171 
     ## Component:  5 
-    ## Estimates:  0.015572 0.011433 0.980533 
-    ## se.coef  :  0.008004 0.003079 0.004566 
-    ## t-value  :  1.945484 3.712729 214.725 
+    ## Estimates:  0.019451 0.017918 0.972074 
+    ## se.coef  :  0.009634 0.004451 0.006958 
+    ## t-value  :  2.018941 4.025318 139.7078 
     ## Component:  6 
-    ## Estimates:  0.001926 0.001927 0.996842 
-    ## se.coef  :  0.000518 0.000343 0.000122 
-    ## t-value  :  3.71455 5.625547 8143.642 
+    ## Estimates:  0.036638 0.014494 0.963805 
+    ## se.coef  :  0.013969 0.004557 0.010101 
+    ## t-value  :  2.622865 3.180738 95.41983 
     ## Component:  7 
-    ## Estimates:  0.003888 0.007996 0.986828 
-    ## se.coef  :  0.001593 0.002071 0.001801 
-    ## t-value  :  2.440491 3.860301 548.0592 
+    ## Estimates:  0.003914 0.007495 0.987395 
+    ## se.coef  :  0.001618 0.00209 0.001698 
+    ## t-value  :  2.418743 3.586171 581.6305 
     ## Component:  8 
-    ## Estimates:  0.000333 0.033299 0.96085 
-    ## se.coef  :  0.000254 0.008646 0.010716 
-    ## t-value  :  1.309387 3.851229 89.66801
+    ## Estimates:  0.000494 0.044952 0.946652 
+    ## se.coef  :  0.000359 0.011909 0.015016 
+    ## t-value  :  1.377213 3.774614 63.04486
 
-``` r
-# After saving now the standardized residuals:
-StdRes <- DCCPre$sresi
-# We can now use these sresids to calculate the DCC model.
-# In order to fit the DCC model detach the tidyr and dplyr packages, 
-# once detached can now run dccFit
-# when done then tidyr and dplyr 
-detach("package:tidyverse", unload=TRUE)
-detach("package:tbl2xts", unload=TRUE)
-DCC <- dccFit(StdRes, type="Engle")
-```
+    # After saving now the standardized residuals:
+    StdRes <- DCCPre$sresi
+    # We can now use these sresids to calculate the DCC model.
+    # In order to fit the DCC model detach the tidyr and dplyr packages, 
+    # once detached can now run dccFit
+    # when done then tidyr and dplyr 
+    detach("package:tidyverse", unload=TRUE)
+    detach("package:tbl2xts", unload=TRUE)
+    DCC <- dccFit(StdRes, type="Engle")
 
-    ## Estimates:  0.95 0.03345756 20 
-    ## st.errors:  NaN NaN 1.137283 
-    ## t-values:   NaN NaN 17.58577
+    ## Estimates:  0.95 0.03338368 20 
+    ## st.errors:  NaN NaN 1.125954 
+    ## t-values:   NaN NaN 17.76271
 
-``` r
-pacman::p_load("tidyverse", "rmsfuns", "fmxdat", "tbl2xts", "broom")
-```
+    pacman::p_load("tidyverse", "rmsfuns", "fmxdat", "tbl2xts", "broom")
 
-``` r
-graph_rename_func_mv(input_name_1 = "ALSI_",
-                     input_name_2 = "_ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI",
-                     subtitle = "",
-                     caption = "",
-                     xlabel = "",
-                     ylabel = "Rho")
-```
+    graph_rename_func_mv(input_name_1 = "ALSI_",
+                         input_name_2 = "_ALSI",
+                         title = "Dynamic Conditional Correlations: ALSI",
+                         subtitle = "",
+                         caption = "",
+                         xlabel = "",
+                         ylabel = "Rho")
 
-![](README_files/figure-markdown_github/unnamed-chunk-13-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-13-1.png)
 
 ## Graph: ALSI with Individual REITS
 
-``` r
-graph_rename_func_mv(input_name_1 = "ALSI_CCO",
-                     input_name_2 = "_ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI and CCO",
-                     subtitle = "",
-                     caption = "",
-                     xlabel = "",
-                     ylabel = "Rho")
-```
+    graph_rename_func_mv(input_name_1 = "ALSI_CCO",
+                         input_name_2 = "_ALSI",
+                         title = "Dynamic Conditional Correlations: ALSI and CCO",
+                         subtitle = "",
+                         caption = "",
+                         xlabel = "",
+                         ylabel = "Rho")
 
-![](README_files/figure-markdown_github/unnamed-chunk-14-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-14-1.png)
 
-``` r
-graph_rename_func_mv(input_name_1 = "ALSI_EMI",
-                     input_name_2 = "_ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI and EMI",
-                     subtitle = "",
-                     caption = "",
-                     xlabel = "",
-                     ylabel = "Rho")
-```
+    graph_rename_func_mv(input_name_1 = "ALSI_EMI",
+                         input_name_2 = "_ALSI",
+                         title = "Dynamic Conditional Correlations: ALSI and EMI",
+                         subtitle = "",
+                         caption = "",
+                         xlabel = "",
+                         ylabel = "Rho")
 
-![](README_files/figure-markdown_github/unnamed-chunk-15-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-15-1.png)
 
-``` r
-graph_rename_func_mv(input_name_1 = "ALSI_GRT",
-                     input_name_2 = "_ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI and GRT",
-                     subtitle = "",
-                     caption = "",
-                     xlabel = "",
-                     ylabel = "Rho")
-```
+    graph_rename_func_mv(input_name_1 = "ALSI_GRT",
+                         input_name_2 = "_ALSI",
+                         title = "Dynamic Conditional Correlations: ALSI and GRT",
+                         subtitle = "",
+                         caption = "",
+                         xlabel = "",
+                         ylabel = "Rho")
 
-![](README_files/figure-markdown_github/unnamed-chunk-16-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-16-1.png)
 
-``` r
-graph_rename_func_mv(input_name_1 = "ALSI_HYP",
-                     input_name_2 = "_ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI and HYP",
-                     subtitle = "",
-                     caption = "",
-                     xlabel = "",
-                     ylabel = "Rho")
-```
+    graph_rename_func_mv(input_name_1 = "ALSI_HYP",
+                         input_name_2 = "_ALSI",
+                         title = "Dynamic Conditional Correlations: ALSI and HYP",
+                         subtitle = "",
+                         caption = "",
+                         xlabel = "",
+                         ylabel = "Rho")
 
-![](README_files/figure-markdown_github/unnamed-chunk-17-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-17-1.png)
 
-``` r
-graph_rename_func_mv(input_name_1 = "ALSI_RES",
-                     input_name_2 = "_ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI and RES",
-                     subtitle = "",
-                     caption = "",
-                     xlabel = "",
-                     ylabel = "Rho")
-```
+    graph_rename_func_mv(input_name_1 = "ALSI_RES",
+                         input_name_2 = "_ALSI",
+                         title = "Dynamic Conditional Correlations: ALSI and RES",
+                         subtitle = "",
+                         caption = "",
+                         xlabel = "",
+                         ylabel = "Rho")
 
-![](README_files/figure-markdown_github/unnamed-chunk-18-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-18-1.png)
 
-``` r
-graph_rename_func_mv(input_name_1 = "ALSI_RDF",
-                     input_name_2 = "_ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI and RDF",
-                     subtitle = "",
-                     caption = "",
-                     xlabel = "",
-                     ylabel = "Rho")
-```
+    graph_rename_func_mv(input_name_1 = "ALSI_RDF",
+                         input_name_2 = "_ALSI",
+                         title = "Dynamic Conditional Correlations: ALSI and RDF",
+                         subtitle = "",
+                         caption = "",
+                         xlabel = "",
+                         ylabel = "Rho")
 
-![](README_files/figure-markdown_github/unnamed-chunk-19-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-19-1.png)
 
-``` r
-graph_rename_func_mv(input_name_1 = "ALSI_SAC",
-                     input_name_2 = "_ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI and SAC",
-                     subtitle = "",
-                     caption = "",
-                     xlabel = "",
-                     ylabel = "Rho")
-```
+    graph_rename_func_mv(input_name_1 = "ALSI_SAC",
+                         input_name_2 = "_ALSI",
+                         title = "Dynamic Conditional Correlations: ALSI and SAC",
+                         subtitle = "",
+                         caption = "",
+                         xlabel = "",
+                         ylabel = "Rho")
 
-![](README_files/figure-markdown_github/unnamed-chunk-20-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-20-1.png)
 
 ## Graph: CCO with Individual REITS
 
-``` r
-graph_rename_func_mv(input_name_1 = "CCO.._",
-                     input_name_2 = "CCO.._ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI and RDF",
-                     subtitle = "",
-                     caption = "",
-                     xlabel = "",
-                     ylabel = "Rho")
-```
+    graph_rename_func_mv(input_name_1 = "CCO.._",
+                         input_name_2 = "CCO.._ALSI",
+                         title = "Dynamic Conditional Correlations: ALSI and RDF",
+                         subtitle = "",
+                         caption = "",
+                         xlabel = "",
+                         ylabel = "Rho")
 
-![](README_files/figure-markdown_github/unnamed-chunk-21-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-21-1.png)
