@@ -15,7 +15,7 @@ data_cleaning_func <- function(df_data){
         imputed_ALSI_returns_spread %>%
             gather(Tickers, Return, -date) %>%
             arrange(date) %>%
-            group_by(date) %>% # group_by date so summation will be calculated for each Tciker for the same date
+            group_by(date) %>% # group_by date so summation will be calculated for each Ticker for the same date
             mutate(Returns = mean(Return)) %>%
             distinct(., date, .keep_all = TRUE) %>% # to select a unique date row
             mutate(Tickers = "ALSI") %>%
@@ -27,7 +27,7 @@ data_cleaning_func <- function(df_data){
         select(date, Tickers, Return) %>%
         arrange(date) %>%
 
-        filter(date >= as.Date("2011-01-01") & date <= as.Date("2022-10-31"))
+        filter(date >= as.Date("2008-01-01") & date <= as.Date("2022-10-31"))
 
 
     xts_data_combined <-

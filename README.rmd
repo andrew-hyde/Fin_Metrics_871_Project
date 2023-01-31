@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 rm(list = ls()) # Clean your environment:
 gc() # garbage collection - It can be useful to call gc after a large object has been removed, as this may prompt R to return memory to the operating system.
 
+
 ```
 
 
@@ -35,7 +36,7 @@ I make use of the 'tidyverse' to clean and wrangle the data as well as perform v
 # load pacakges to be used in the analysis
 pacman::p_load("tidyverse", "devtools", "rugarch", "rmgarch", 
     "forecast", "tbl2xts", "lubridate", "PerformanceAnalytics", 
-    "ggthemes", "ks", "MTS", "robustbase")
+    "ggthemes", "ks", "MTS", "robustbase", "tbl2xts")
 
 ```
 
@@ -51,6 +52,7 @@ Next, I source in all the functions to be used to conduct the analysis.
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 
+set.seed(123)
 # read in the data
 data_ALSI_returns <- read_rds("data/Alsi_Returns.rds")
 # Remove the 'SJ' and 'Equity' from Tickers
@@ -81,7 +83,7 @@ I make use of the dplyr package to determine how many unique sectors are in the 
 If find that from 2005 to 2022, the number of REITS changes over time. My next step is therefore to plot the data where each property ticker is plotted in it's own panel. To do this I make use of 'facet_wrap' in the package 'ggplot2'
 
 
-```{r include=FALSE}
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=TRUE}
 
 # determine which sectors are included in the data set
 data_alsi %>% 
@@ -154,7 +156,8 @@ REITs to include: CCO, EMI, GRT, HYP, RDF, RES, SAC.
 
 Next, I filter the ALSI Property data for the REITs listed above and impute the missing values in this filtered data.
 
-# Impute missing values: Property equities
+# Prepare data for DCC Model
+## Impute missing values: Property equities
 
 ```{r}
 
@@ -188,14 +191,7 @@ imputed_REIT_returns_spread <- impute_missing_returns(
 
 ```
 
-
-# graph the performance of the REITS
-```{r}
-
-
-```
-
-# Impute missing values: ALSI less REITs
+## Impute missing values: ALSI less REITs
 
 ```{r}
 
@@ -294,7 +290,7 @@ StdRes <- DCCPre$sresi
 detach("package:tidyverse", unload=TRUE)
 detach("package:tbl2xts", unload=TRUE)
 DCC <- dccFit(StdRes, type="Engle")
-pacman::p_load("tidyverse", "rmsfuns", "fmxdat", "tbl2xts", "broom")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
 
 ```
 
@@ -315,118 +311,241 @@ graph_rename_func_mv(input_name_1 = "ALSI_",
 
 
 
-## Graph: ALSI with Individual REITS
 
-```{r}
+```{r, figures-side, fig.show="hold", out.width="50%"}
 
 graph_rename_func_mv(input_name_1 = "ALSI_CCO",
                      input_name_2 = "_ALSI",
                      title = "Dynamic Conditional Correlations: ALSI and CCO",
-                     subtitle = "",
+                     subtitle = "2008 to 2022",
                      caption = "",
                      xlabel = "",
-                     ylabel = "Rho")
-
-```
-
-
-
-
-```{r}
+                     ylabel = "Correlation")
 
 graph_rename_func_mv(input_name_1 = "ALSI_EMI",
                      input_name_2 = "_ALSI",
                      title = "Dynamic Conditional Correlations: ALSI and EMI",
-                     subtitle = "",
+                     subtitle = "2008 to 2022",
                      caption = "",
                      xlabel = "",
-                     ylabel = "Rho")
-```
-
-
-
-```{r}
+                     ylabel = "Correlation")
 
 graph_rename_func_mv(input_name_1 = "ALSI_GRT",
                      input_name_2 = "_ALSI",
                      title = "Dynamic Conditional Correlations: ALSI and GRT",
-                     subtitle = "",
+                     subtitle = "2008 to 2022",
                      caption = "",
                      xlabel = "",
-                     ylabel = "Rho")
-```
-
-
-
-```{r}
+                     ylabel = "Correlation")
 
 graph_rename_func_mv(input_name_1 = "ALSI_HYP",
                      input_name_2 = "_ALSI",
                      title = "Dynamic Conditional Correlations: ALSI and HYP",
-                     subtitle = "",
+                     subtitle = "2008 to 2022",
                      caption = "",
                      xlabel = "",
-                     ylabel = "Rho")
-```
-
-
-
-
-```{r}
+                     ylabel = "Correlation")
 
 graph_rename_func_mv(input_name_1 = "ALSI_RES",
                      input_name_2 = "_ALSI",
                      title = "Dynamic Conditional Correlations: ALSI and RES",
-                     subtitle = "",
+                     subtitle = "2008 to 2022",
                      caption = "",
                      xlabel = "",
-                     ylabel = "Rho")
-
-```
-
-
-
-
-```{r}
+                     ylabel = "Correlation")
 
 graph_rename_func_mv(input_name_1 = "ALSI_RDF",
                      input_name_2 = "_ALSI",
                      title = "Dynamic Conditional Correlations: ALSI and RDF",
-                     subtitle = "",
+                     subtitle = "2008 to 2022",
                      caption = "",
                      xlabel = "",
-                     ylabel = "Rho")
-
-```
-
-
-
-
-
-```{r}
+                     ylabel = "Correlation")
 
 graph_rename_func_mv(input_name_1 = "ALSI_SAC",
                      input_name_2 = "_ALSI",
                      title = "Dynamic Conditional Correlations: ALSI and SAC",
-                     subtitle = "",
+                     subtitle = "2008 to 2022",
                      caption = "",
                      xlabel = "",
-                     ylabel = "Rho")
+                     ylabel = "Correlation")
+
 
 ```
 
 
-## Graph: CCO with Individual REITS
+
 
 ```{r}
 
 graph_rename_func_mv(input_name_1 = "CCO.._",
-                     input_name_2 = "CCO.._ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI and RDF",
+                     input_name_2 = "_CCO..",
+                     title = "Dynamic Conditional Correlations: Capco and SA REITs",
                      subtitle = "",
                      caption = "",
                      xlabel = "",
                      ylabel = "Rho")
 
 ```
+
+# Periods of Rand Volatility
+
+In this section, periods of high USD/ZAR (Dollar Rand) volatility are isolated and used as to filter for the ALSI combined and imputed data. The premise being that periods of high Rand volatility can act as an indicator for high levels of volatility in South Africa financial markets and other asset classes. These highly volatile periods are then used as an index to filter the returns data for periods where South African markets were volatile.
+
+Given that the high volatility combine imputed ALSI returns data will have large missing gaps due to periods of moderate or low volatility, dynamic correlations between equity pairs will have to be charted for short periods of a time. This is due to the fact that the graphing function used will not skip whole year periods.
+
+Following this methodology of running multiple DCC models on smaller periods of high volatility decreases the run time of the model.
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_HI_Vol_ALSI_data_combined_<- data_cleaning_func_hi_vol_2008_2009(df_data)
+
+#-------------------------------------------------------------------------------
+
+#The DCC model is then run and the estimates of time-varying correlation are produced.
+
+DCC_ <- dccPre(xts_HI_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes_ <- DCC_$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages,
+# once detached can now run dccFit
+# when done then tidyr and dplyr
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC_ <- dccFit(StdRes_, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+
+```
+
+
+```{r}
+hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                    input_name_2 = "_ALSI",
+                                    title = "Dynamic Conditional Correlations: ALSI",
+                                    subtitle = "2008 to 2009",
+                                    caption = "",
+                                    xlabel = "",
+                                    ylabel = "Rho")
+
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_HI_Vol_ALSI_data_combined_ <- data_cleaning_func_hi_vol_2011(df_data)
+
+#-------------------------------------------------------------------------------
+
+#The DCC model is then run and the estimates of time-varying correlation are produced.
+
+DCC_ <- dccPre(xts_HI_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes_ <- DCC_$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages,
+# once detached can now run dccFit
+# when done then tidyr and dplyr
+
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC_ <- dccFit(StdRes_, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+```
+
+
+```{r}
+hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                    input_name_2 = "_ALSI",
+                                    title = "Dynamic Conditional Correlations: ALSI",
+                                    subtitle = "2011",
+                                    caption = "",
+                                    xlabel = "",
+                                    ylabel = "Rho")
+
+```
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_HI_Vol_ALSI_data_combined_ <- data_cleaning_func_hi_vol_2015_2016(df_data)
+
+#-------------------------------------------------------------------------------
+
+#The DCC model is then run and the estimates of time-varying correlation are produced.
+
+DCC_ <- dccPre(xts_HI_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes_ <- DCC_$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages,
+# once detached can now run dccFit
+# when done then tidyr and dplyr
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC_ <- dccFit(StdRes_, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+```
+
+
+```{r}
+hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                    input_name_2 = "_ALSI",
+                                    title = "Dynamic Conditional Correlations: ALSI",
+                                    subtitle = "2016",
+                                    caption = "",
+                                    xlabel = "",
+                                    ylabel = "Rho")
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_HI_Vol_ALSI_data_combined_ <- data_cleaning_func_hi_vol_2020(df_data)
+
+#-------------------------------------------------------------------------------
+
+#The DCC model is then run and the estimates of time-varying correlation are produced.
+
+DCC_ <- dccPre(xts_HI_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes_ <- DCC_$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages,
+# once detached can now run dccFit
+# when done then tidyr and dplyr
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC_ <- dccFit(StdRes_, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+```
+
+
+```{r}
+hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                    input_name_2 = "_ALSI",
+                                    title = "Dynamic Conditional Correlations: ALSI",
+                                    subtitle = "2020",
+                                    caption = "",
+                                    xlabel = "",
+                                    ylabel = "Rho")
+
+```
+
 

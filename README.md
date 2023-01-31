@@ -16,7 +16,7 @@ visualization.
     # load pacakges to be used in the analysis
     pacman::p_load("tidyverse", "devtools", "rugarch", "rmgarch", 
         "forecast", "tbl2xts", "lubridate", "PerformanceAnalytics", 
-        "ggthemes", "ks", "MTS", "robustbase")
+        "ggthemes", "ks", "MTS", "robustbase", "tbl2xts")
 
 # Import the data
 
@@ -35,6 +35,7 @@ set Returns with -Inf to zero.
 
 Next, I source in all the functions to be used to conduct the analysis.
 
+    set.seed(123)
     # read in the data
     data_ALSI_returns <- read_rds("data/Alsi_Returns.rds")
     # Remove the 'SJ' and 'Equity' from Tickers
@@ -67,6 +68,35 @@ If find that from 2005 to 2022, the number of REITS changes over time.
 My next step is therefore to plot the data where each property ticker is
 plotted in it’s own panel. To do this I make use of ‘facet\_wrap’ in the
 package ‘ggplot2’
+
+    # determine which sectors are included in the data set
+    data_alsi %>% 
+        select(Sector) %>%
+        unique()
+
+    # input any date with in the data range to determine how many unique property stocks there are and if this changes over time
+    data_alsi %>% filter(date == "2013-02-03") %>%
+        filter(Sector == "Property") %>%
+        arrange(date, Tickers) %>% 
+        group_by(Tickers) %>%
+        select(date, Tickers) %>% 
+        unique()
+
+    # count the number of NAs or missing values in the data
+    data_alsi %>% 
+        select(date, Tickers, Return, J433) %>% 
+        group_by(Tickers) %>%
+        select(date, Tickers) %>% 
+        unique()
+        
+    # some wrangling to determine if the J433 sums to 1 for an arbitrary date
+    # can set date to any week date
+    # there for can make use of na.omit or set NAs to zero for the weights column 'J433'
+    # Which is tested below
+    data_alsi %>% filter(date == "2012-02-03") %>% 
+        select(date, Tickers, Return, J433, Sector) %>% 
+        na.omit(J433) %>% 
+        mutate(sum(J433)) 
 
 I make use of the tidyverse package in to wrangle the data into a usable
 format to conduct the analysis. The task here is to remove the property
@@ -134,7 +164,9 @@ REITs to include: CCO, EMI, GRT, HYP, RDF, RES, SAC.
 Next, I filter the ALSI Property data for the REITs listed above and
 impute the missing values in this filtered data.
 
-# Impute missing values: Property equities
+# Prepare data for DCC Model
+
+## Impute missing values: Property equities
 
     #
     data_alsi_REIT <- data_alsi %>%
@@ -162,9 +194,7 @@ impute the missing values in this filtered data.
             
         impute_returns_method = "Drawn_Distribution_Own")
 
-# graph the performance of the REITS
-
-# Impute missing values: ALSI less REITs
+## Impute missing values: ALSI less REITs
 
     # create a data set where property stocks have been removed from the Alsi_Returns data and re-weighted.
     # Now impute missing values using the 'impute_missing_values' function
@@ -219,41 +249,41 @@ neat. I plot the estimates of volatility for each seriesfrom ‘dccPre’.
     # SEE: q6_nested_graph_function.R (NESTED FUNC)
     mv_garch_COMBINED_nested_function(df_data)
 
-    ## Sample mean of the returns:  -0.4359894 -0.816097 0.8009922 -0.1499985 0.8661694 0.02661527 -0.1251878 0.2229124 
+    ## Sample mean of the returns:  -0.4312428 -0.79778 0.7520471 -0.175957 0.8383758 0.04329736 -0.1133111 0.2221172 
     ## Component:  1 
-    ## Estimates:  0.817525 0.036139 0.412812 
-    ## se.coef  :  0.784452 0.02253 0.542006 
-    ## t-value  :  1.04216 1.604057 0.761637 
+    ## Estimates:  0.240096 0 0.826149 
+    ## se.coef  :  0.617144 0.013065 0.45594 
+    ## t-value  :  0.389044 1e-06 1.811967 
     ## Component:  2 
-    ## Estimates:  0.204256 0 0.832915 
-    ## se.coef  :  NaN NaN NaN 
-    ## t-value  :  NaN NaN NaN 
+    ## Estimates:  0.189246 0 0.844127 
+    ## se.coef  :  0.325868 0.010879 0.265836 
+    ## t-value  :  0.580744 1e-06 3.17537 
     ## Component:  3 
-    ## Estimates:  0.243877 0 0.836649 
-    ## se.coef  :  0.430106 0.008508 0.289586 
-    ## t-value  :  0.567017 1e-06 2.889123 
+    ## Estimates:  0.145547 0.000697 0.911828 
+    ## se.coef  :  0.131556 0.005766 0.079191 
+    ## t-value  :  1.106354 0.120852 11.51429 
     ## Component:  4 
-    ## Estimates:  0.005396 0.004853 0.991698 
-    ## se.coef  :  0.00188 0.001233 0.000745 
-    ## t-value  :  2.870661 3.936343 1331.394 
+    ## Estimates:  2e-06 0.000198 0.999771 
+    ## se.coef  :  6.4e-05 8e-05 2.6e-05 
+    ## t-value  :  0.025768 2.471748 38977.15 
     ## Component:  5 
-    ## Estimates:  0.014443 0.006855 0.980982 
-    ## se.coef  :  0.00439 0.002662 0.00355 
-    ## t-value  :  3.289675 2.575504 276.3269 
+    ## Estimates:  0.024921 0.007235 0.971692 
+    ## se.coef  :  0.00897 0.0037 0.008028 
+    ## t-value  :  2.778074 1.955501 121.032 
     ## Component:  6 
-    ## Estimates:  0.036717 0.014349 0.963893 
-    ## se.coef  :  0.013937 0.004498 0.010079 
-    ## t-value  :  2.634529 3.190058 95.63708 
+    ## Estimates:  0.072703 0.006828 0.950942 
+    ## se.coef  :  0.039857 0.005092 0.024612 
+    ## t-value  :  1.8241 1.340925 38.63775 
     ## Component:  7 
-    ## Estimates:  0.005254 0.006806 0.986183 
-    ## se.coef  :  0.002062 0.002575 0.002053 
-    ## t-value  :  2.548397 2.642899 480.3592 
+    ## Estimates:  0.003737 0.005978 0.989023 
+    ## se.coef  :  0.001582 0.002091 0.001307 
+    ## t-value  :  2.361871 2.859159 756.8043 
     ## Component:  8 
-    ## Estimates:  0.000312 0.029001 0.934104 
-    ## se.coef  :  0.000139 0.008179 0.022127 
-    ## t-value  :  2.24104 3.545985 42.21595
+    ## Estimates:  0.000145 0.011366 0.971289 
+    ## se.coef  :  5.6e-05 0.00362 0.007873 
+    ## t-value  :  2.574266 3.139594 123.3657
 
-![](README_files/figure-markdown_strict/unnamed-chunk-9-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-8-1.png)
 
 Additionally, I plot the volatility of only the seven REIT equities
 included in this study.
@@ -261,40 +291,37 @@ included in this study.
     # volatility of REITs
     mv_garch_REIT_nested_function(df_data)
 
-    ## Sample mean of the returns:  -0.4019666 -0.7820742 0.835015 -0.1159757 0.9001922 0.06063808 -0.09116497 
+    ## Sample mean of the returns:  -0.3972556 -0.7637927 0.7860344 -0.1419697 0.8723631 0.07728465 -0.0793238 
     ## Component:  1 
-    ## Estimates:  0.817525 0.036139 0.412812 
-    ## se.coef  :  0.784452 0.02253 0.542006 
-    ## t-value  :  1.04216 1.604057 0.761637
-
-    ## Warning in sqrt(diag(fit$cvar)): NaNs produced
-
+    ## Estimates:  0.240096 0 0.826149 
+    ## se.coef  :  0.617144 0.013065 0.45594 
+    ## t-value  :  0.389044 1e-06 1.811967 
     ## Component:  2 
-    ## Estimates:  0.204256 0 0.832915 
-    ## se.coef  :  NaN NaN NaN 
-    ## t-value  :  NaN NaN NaN 
+    ## Estimates:  0.189246 0 0.844127 
+    ## se.coef  :  0.325868 0.010879 0.265836 
+    ## t-value  :  0.580744 1e-06 3.17537 
     ## Component:  3 
-    ## Estimates:  0.243877 0 0.836649 
-    ## se.coef  :  0.430106 0.008508 0.289586 
-    ## t-value  :  0.567017 1e-06 2.889123 
+    ## Estimates:  0.145547 0.000697 0.911828 
+    ## se.coef  :  0.131556 0.005766 0.079191 
+    ## t-value  :  1.106354 0.120852 11.51429 
     ## Component:  4 
-    ## Estimates:  0.005396 0.004853 0.991698 
-    ## se.coef  :  0.00188 0.001233 0.000745 
-    ## t-value  :  2.870661 3.936343 1331.394 
+    ## Estimates:  2e-06 0.000198 0.999771 
+    ## se.coef  :  6.4e-05 8e-05 2.6e-05 
+    ## t-value  :  0.025768 2.471748 38977.15 
     ## Component:  5 
-    ## Estimates:  0.014443 0.006855 0.980982 
-    ## se.coef  :  0.00439 0.002662 0.00355 
-    ## t-value  :  3.289675 2.575504 276.3269 
+    ## Estimates:  0.024921 0.007235 0.971692 
+    ## se.coef  :  0.00897 0.0037 0.008028 
+    ## t-value  :  2.778074 1.955501 121.032 
     ## Component:  6 
-    ## Estimates:  0.036717 0.014349 0.963893 
-    ## se.coef  :  0.013937 0.004498 0.010079 
-    ## t-value  :  2.634529 3.190058 95.63708 
+    ## Estimates:  0.072703 0.006828 0.950942 
+    ## se.coef  :  0.039857 0.005092 0.024612 
+    ## t-value  :  1.8241 1.340925 38.63775 
     ## Component:  7 
-    ## Estimates:  0.005254 0.006806 0.986183 
-    ## se.coef  :  0.002062 0.002575 0.002053 
-    ## t-value  :  2.548397 2.642899 480.3592
+    ## Estimates:  0.003737 0.005978 0.989023 
+    ## se.coef  :  0.001582 0.002091 0.001307 
+    ## t-value  :  2.361871 2.859159 756.8043
 
-![](README_files/figure-markdown_strict/unnamed-chunk-10-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-9-1.png)
 
 The ‘dccPre’ function is use to fit the univariate GARCH models to each
 series in the data and a standard univariate GARCH(1,1) is run which
@@ -320,37 +347,37 @@ are produced.
     DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = F, p = 0)
 
     ## Component:  1 
-    ## Estimates:  1.434911 0.028269 0.114422 
-    ## se.coef  :  0.620411 0.017502 0.371222 
-    ## t-value  :  2.312839 1.615157 0.308231 
+    ## Estimates:  0.236014 0 0.849869 
+    ## se.coef  :  0.395437 0.007554 0.248727 
+    ## t-value  :  0.596843 1e-06 3.416881 
     ## Component:  2 
-    ## Estimates:  0.019775 0.007549 0.981983 
-    ## se.coef  :  0.00719 0.002475 0.003698 
-    ## t-value  :  2.750222 3.04972 265.5731 
+    ## Estimates:  0.035274 0.01161 0.968725 
+    ## se.coef  :  0.014439 0.003705 0.009526 
+    ## t-value  :  2.443007 3.133659 101.6892 
     ## Component:  3 
-    ## Estimates:  0.039928 0.013145 0.968123 
-    ## se.coef  :  0.019974 0.004817 0.010638 
-    ## t-value  :  1.999006 2.728806 91.00411 
+    ## Estimates:  0.074196 0.024807 0.94064 
+    ## se.coef  :  0.034824 0.007322 0.020854 
+    ## t-value  :  2.130565 3.38821 45.10598 
     ## Component:  4 
-    ## Estimates:  0.004087 0.005095 0.992304 
-    ## se.coef  :  0.001496 0.001019 0.000636 
-    ## t-value  :  2.73087 4.999766 1559.171 
+    ## Estimates:  0.001448 0.001955 0.997166 
+    ## se.coef  :  0.000275 0.000165 8.5e-05 
+    ## t-value  :  5.271418 11.84244 11712.41 
     ## Component:  5 
-    ## Estimates:  0.019451 0.017918 0.972074 
-    ## se.coef  :  0.009634 0.004451 0.006958 
-    ## t-value  :  2.018941 4.025318 139.7078 
+    ## Estimates:  0.017266 0.01235 0.978371 
+    ## se.coef  :  0.007637 0.003159 0.004828 
+    ## t-value  :  2.260892 3.909929 202.6537 
     ## Component:  6 
-    ## Estimates:  0.036638 0.014494 0.963805 
-    ## se.coef  :  0.013969 0.004557 0.010101 
-    ## t-value  :  2.622865 3.180738 95.41983 
+    ## Estimates:  0.053818 0.008453 0.960486 
+    ## se.coef  :  0.022248 0.004121 0.014129 
+    ## t-value  :  2.41895 2.051282 67.98083 
     ## Component:  7 
-    ## Estimates:  0.003914 0.007495 0.987395 
-    ## se.coef  :  0.001618 0.00209 0.001698 
-    ## t-value  :  2.418743 3.586171 581.6305 
+    ## Estimates:  0.003344 0.006854 0.988678 
+    ## se.coef  :  0.001283 0.001715 0.001226 
+    ## t-value  :  2.605311 3.996903 806.4823 
     ## Component:  8 
-    ## Estimates:  0.000494 0.044952 0.946652 
-    ## se.coef  :  0.000359 0.011909 0.015016 
-    ## t-value  :  1.377213 3.774614 63.04486
+    ## Estimates:  0.000271 0.033203 0.962433 
+    ## se.coef  :  0.000209 0.007467 0.008732 
+    ## t-value  :  1.296008 4.446729 110.2252
 
     # After saving now the standardized residuals:
     StdRes <- DCCPre$sresi
@@ -362,11 +389,11 @@ are produced.
     detach("package:tbl2xts", unload=TRUE)
     DCC <- dccFit(StdRes, type="Engle")
 
-    ## Estimates:  0.95 0.03338368 20 
-    ## st.errors:  NaN NaN 1.125954 
-    ## t-values:   NaN NaN 17.76271
+    ## Estimates:  0.95 0.03267332 20 
+    ## st.errors:  NaN NaN 0.9758897 
+    ## t-values:   NaN NaN 20.49412
 
-    pacman::p_load("tidyverse", "rmsfuns", "fmxdat", "tbl2xts", "broom")
+    pacman::p_load("tidyverse", "tbl2xts", "broom")
 
     graph_rename_func_mv(input_name_1 = "ALSI_",
                          input_name_2 = "_ALSI",
@@ -376,88 +403,131 @@ are produced.
                          xlabel = "",
                          ylabel = "Rho")
 
-![](README_files/figure-markdown_strict/unnamed-chunk-13-1.png)
-
-## Graph: ALSI with Individual REITS
+![](README_files/figure-markdown_strict/unnamed-chunk-12-1.png)
 
     graph_rename_func_mv(input_name_1 = "ALSI_CCO",
                          input_name_2 = "_ALSI",
                          title = "Dynamic Conditional Correlations: ALSI and CCO",
-                         subtitle = "",
+                         subtitle = "2008 to 2022",
                          caption = "",
                          xlabel = "",
-                         ylabel = "Rho")
-
-![](README_files/figure-markdown_strict/unnamed-chunk-14-1.png)
+                         ylabel = "Correlation")
 
     graph_rename_func_mv(input_name_1 = "ALSI_EMI",
                          input_name_2 = "_ALSI",
                          title = "Dynamic Conditional Correlations: ALSI and EMI",
-                         subtitle = "",
+                         subtitle = "2008 to 2022",
                          caption = "",
                          xlabel = "",
-                         ylabel = "Rho")
-
-![](README_files/figure-markdown_strict/unnamed-chunk-15-1.png)
+                         ylabel = "Correlation")
 
     graph_rename_func_mv(input_name_1 = "ALSI_GRT",
                          input_name_2 = "_ALSI",
                          title = "Dynamic Conditional Correlations: ALSI and GRT",
-                         subtitle = "",
+                         subtitle = "2008 to 2022",
                          caption = "",
                          xlabel = "",
-                         ylabel = "Rho")
-
-![](README_files/figure-markdown_strict/unnamed-chunk-16-1.png)
+                         ylabel = "Correlation")
 
     graph_rename_func_mv(input_name_1 = "ALSI_HYP",
                          input_name_2 = "_ALSI",
                          title = "Dynamic Conditional Correlations: ALSI and HYP",
-                         subtitle = "",
+                         subtitle = "2008 to 2022",
                          caption = "",
                          xlabel = "",
-                         ylabel = "Rho")
-
-![](README_files/figure-markdown_strict/unnamed-chunk-17-1.png)
+                         ylabel = "Correlation")
 
     graph_rename_func_mv(input_name_1 = "ALSI_RES",
                          input_name_2 = "_ALSI",
                          title = "Dynamic Conditional Correlations: ALSI and RES",
-                         subtitle = "",
+                         subtitle = "2008 to 2022",
                          caption = "",
                          xlabel = "",
-                         ylabel = "Rho")
-
-![](README_files/figure-markdown_strict/unnamed-chunk-18-1.png)
+                         ylabel = "Correlation")
 
     graph_rename_func_mv(input_name_1 = "ALSI_RDF",
                          input_name_2 = "_ALSI",
                          title = "Dynamic Conditional Correlations: ALSI and RDF",
-                         subtitle = "",
+                         subtitle = "2008 to 2022",
                          caption = "",
                          xlabel = "",
-                         ylabel = "Rho")
-
-![](README_files/figure-markdown_strict/unnamed-chunk-19-1.png)
+                         ylabel = "Correlation")
 
     graph_rename_func_mv(input_name_1 = "ALSI_SAC",
                          input_name_2 = "_ALSI",
                          title = "Dynamic Conditional Correlations: ALSI and SAC",
-                         subtitle = "",
+                         subtitle = "2008 to 2022",
                          caption = "",
                          xlabel = "",
-                         ylabel = "Rho")
+                         ylabel = "Correlation")
 
-![](README_files/figure-markdown_strict/unnamed-chunk-20-1.png)
-
-## Graph: CCO with Individual REITS
+<img src="README_files/figure-markdown_strict/figures-side-1.png" width="50%" /><img src="README_files/figure-markdown_strict/figures-side-2.png" width="50%" /><img src="README_files/figure-markdown_strict/figures-side-3.png" width="50%" /><img src="README_files/figure-markdown_strict/figures-side-4.png" width="50%" /><img src="README_files/figure-markdown_strict/figures-side-5.png" width="50%" /><img src="README_files/figure-markdown_strict/figures-side-6.png" width="50%" /><img src="README_files/figure-markdown_strict/figures-side-7.png" width="50%" />
 
     graph_rename_func_mv(input_name_1 = "CCO.._",
-                         input_name_2 = "CCO.._ALSI",
-                         title = "Dynamic Conditional Correlations: ALSI and RDF",
+                         input_name_2 = "_CCO..",
+                         title = "Dynamic Conditional Correlations: Capco and SA REITs",
                          subtitle = "",
                          caption = "",
                          xlabel = "",
                          ylabel = "Rho")
+
+![](README_files/figure-markdown_strict/unnamed-chunk-13-1.png)
+
+# Periods of Rand Volatility
+
+In this section, periods of high USD/ZAR (Dollar Rand) volatility are
+isolated and used as to filter for the ALSI combined and imputed data.
+The premise being that periods of high Rand volatility can act as an
+indicator for high levels of volatility in South Africa financial
+markets and other asset classes. These highly volatile periods are then
+used as an index to filter the returns data for periods where South
+African markets were volatile.
+
+Given that the high volatility combine imputed ALSI returns data will
+have large missing gaps due to periods of moderate or low volatility,
+dynamic correlations between equity pairs will have to be charted for
+short periods of a time. This is due to the fact that the graphing
+function used will not skip whole year periods.
+
+Following this methodology of running multiple DCC models on smaller
+periods of high volatility decreases the run time of the model.
+
+    hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                        input_name_2 = "_ALSI",
+                                        title = "Dynamic Conditional Correlations: ALSI",
+                                        subtitle = "2008 to 2009",
+                                        caption = "",
+                                        xlabel = "",
+                                        ylabel = "Rho")
+
+![](README_files/figure-markdown_strict/unnamed-chunk-15-1.png)
+
+    hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                        input_name_2 = "_ALSI",
+                                        title = "Dynamic Conditional Correlations: ALSI",
+                                        subtitle = "2011",
+                                        caption = "",
+                                        xlabel = "",
+                                        ylabel = "Rho")
+
+![](README_files/figure-markdown_strict/unnamed-chunk-17-1.png)
+
+    hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                        input_name_2 = "_ALSI",
+                                        title = "Dynamic Conditional Correlations: ALSI",
+                                        subtitle = "2016",
+                                        caption = "",
+                                        xlabel = "",
+                                        ylabel = "Rho")
+
+![](README_files/figure-markdown_strict/unnamed-chunk-19-1.png)
+
+    hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                        input_name_2 = "_ALSI",
+                                        title = "Dynamic Conditional Correlations: ALSI",
+                                        subtitle = "2020",
+                                        caption = "",
+                                        xlabel = "",
+                                        ylabel = "Rho")
 
 ![](README_files/figure-markdown_strict/unnamed-chunk-21-1.png)
