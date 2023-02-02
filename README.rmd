@@ -296,7 +296,7 @@ pacman::p_load("tidyverse", "tbl2xts", "broom")
 
 
 
-```{r}
+```{r }
 
 graph_rename_func_mv(input_name_1 = "ALSI_",
                      input_name_2 = "_ALSI",
@@ -395,6 +395,170 @@ In this section, periods of high USD/ZAR (Dollar Rand) volatility are isolated a
 Given that the high volatility combine imputed ALSI returns data will have large missing gaps due to periods of moderate or low volatility, dynamic correlations between equity pairs will have to be charted for short periods of a time. This is due to the fact that the graphing function used will not skip whole year periods.
 
 Following this methodology of running multiple DCC models on smaller periods of high volatility decreases the run time of the model.
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_HI_Vol_ALSI_data_combined_ <- data_cleaning_func_hi_vol_2008_2022(df_data)
+
+#-------------------------------------------------------------------------------
+
+#The DCC model is then run and the estimates of time-varying correlation are produced.
+
+DCC_ <- dccPre(xts_HI_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes_ <- DCC_$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages,
+# once detached can now run dccFit
+# when done then tidyr and dplyr
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC_ <- dccFit(StdRes_, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+```
+
+
+```{r}
+hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                    input_name_2 = "_ALSI",
+                                    title = "Dynamic Conditional Correlations: ALSI",
+                                    subtitle = "Periods of High Rand Volatility, 2007 to 2022",
+                                    caption = "",
+                                    xlabel = "",
+                                    ylabel = "Rho")
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_HI_Vol_ALSI_data_combined_ <- data_cleaning_func_hi_vol_2020(df_data)
+
+#-------------------------------------------------------------------------------
+
+#The DCC model is then run and the estimates of time-varying correlation are produced.
+
+DCC_ <- dccPre(xts_HI_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes_ <- DCC_$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages,
+# once detached can now run dccFit
+# when done then tidyr and dplyr
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC_ <- dccFit(StdRes_, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+```
+
+
+```{r}
+hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                    input_name_2 = "_ALSI",
+                                    title = "Dynamic Conditional Correlations: ALSI",
+                                    subtitle = "Periods of High Rand Volatility, 2020",
+                                    caption = "",
+                                    xlabel = "",
+                                    ylabel = "Rho")
+
+```
+
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_Low_Vol_ALSI_data_combined_ <- data_cleaning_func_Low_vol_2008_2022(df_data)
+
+#-------------------------------------------------------------------------------
+
+#The DCC model is then run and the estimates of time-varying correlation are produced.
+
+DCC_ <- dccPre(xts_Low_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes_ <- DCC_$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages,
+# once detached can now run dccFit
+# when done then tidyr and dplyr
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC_ <- dccFit(StdRes_, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+```
+
+
+```{r}
+Low_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                    input_name_2 = "_ALSI",
+                                    title = "Dynamic Conditional Correlations: ALSI",
+                                    subtitle = "Low Volatility, 2007 to 2022",
+                                    caption = "",
+                                    xlabel = "",
+                                    ylabel = "Rho")
+
+```
+
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_Low_Vol_ALSI_data_combined_ <- data_cleaning_func_Low_vol_2014(df_data)
+
+#-------------------------------------------------------------------------------
+
+#The DCC model is then run and the estimates of time-varying correlation are produced.
+
+DCC_ <- dccPre(xts_Low_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes_ <- DCC_$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages,
+# once detached can now run dccFit
+# when done then tidyr and dplyr
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC_ <- dccFit(StdRes_, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+```
+
+
+```{r}
+Low_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                    input_name_2 = "_ALSI",
+                                    title = "Dynamic Conditional Correlations: ALSI",
+                                    subtitle = "Low Volatility, 2014",
+                                    caption = "",
+                                    xlabel = "",
+                                    ylabel = "Rho")
+
+```
+
+
+
+
+
+
+
+
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 

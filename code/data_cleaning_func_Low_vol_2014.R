@@ -1,14 +1,12 @@
 
-
-
 # wrap in a function to neaten it up
-data_cleaning_func_hi_vol_2020 <- function(df_data){
+data_cleaning_func_Low_vol_2014 <- function(df_data){
 
 #-------------------------------------------------------------------------------
 
     zar <-  read_rds("data/usdzar.rds") %>%
         mutate(Return = Price/lag(Price)-1)%>%
-        filter(date >= as.Date("2020-01-01") & date <= as.Date("2020-12-31")) %>%
+        filter(date >= as.Date("2014-01-01") & date <= as.Date("2014-12-31")) %>%
         filter(Name == "SouthAfrica_Cncy") %>%
         select(-Name)
 
@@ -22,7 +20,7 @@ data_cleaning_func_hi_vol_2020 <- function(df_data){
 
 
     Hi_Vol <- ZARSD %>% filter(SD > TopQtile) %>% pull(YearMonth)
-    #Low_Vol <- ZARSD %>% filter(SD < BotQtile) %>% pull(YearMonth)
+    Low_Vol <- ZARSD %>% filter(SD < BotQtile) %>% pull(YearMonth)
 
 #-------------------------------------------------------------------------------
 
@@ -48,11 +46,11 @@ data_cleaning_func_hi_vol_2020 <- function(df_data){
 
         select(date, Tickers, Return) %>%
         arrange(date) %>%
-        filter(date >= as.Date("2020-01-01") & date <= as.Date("2020-12-31")) %>%
+        filter(date >= as.Date("2014-01-01") & date <= as.Date("2014-12-31")) %>%
           mutate(YearMonth = format(date, "%Y%B")) #%>% # create year months column to filter against
 
 
-hi_vol_data <- combined_data_ALSI_REIT %>% filter(YearMonth %in% Hi_Vol) %>% # filter for months of high volatility
+hi_vol_data <- combined_data_ALSI_REIT %>% filter(YearMonth %in% Low_Vol) %>% # filter for months of high volatility
             select(date, Return, Tickers)
 
     xts_data_combined <-

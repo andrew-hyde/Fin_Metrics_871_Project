@@ -8,7 +8,7 @@ data_cleaning_func_hi_vol_2008_2009 <- function(df_data){
 
     zar <-  read_rds("data/usdzar.rds") %>%
         mutate(Return = Price/lag(Price)-1)%>%
-        filter(date >= as.Date("2008-01-01") & date <= as.Date("2010-12-31")) %>%
+        filter(date >= as.Date("2008-01-01") & date <= as.Date("2009-12-31")) %>%
         filter(Name == "SouthAfrica_Cncy") %>%
         select(-Name)
 
@@ -48,7 +48,7 @@ data_cleaning_func_hi_vol_2008_2009 <- function(df_data){
 
         select(date, Tickers, Return) %>%
         arrange(date) %>%
-        filter(date >= as.Date("2008-01-01") & date <= as.Date("2010-12-31")) %>%
+        filter(date >= as.Date("2008-01-01") & date <= as.Date("2009-12-31")) %>%
           mutate(YearMonth = format(date, "%Y%B")) #%>% # create year months column to filter against
 
 

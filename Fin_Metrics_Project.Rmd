@@ -3,7 +3,7 @@
 # Remove comments and add values where applicable.
 # The descriptions below should be self-explanatory
 
-title: "Time-varying correlation of SA REITs and ALSI Equities"
+title: "Time-varying Correlation of South African Property Stocks and the ALSI"
 #subtitle: "This will appear as Right Header"
 
 documentclass: "elsarticle"
@@ -25,7 +25,7 @@ Thesis_FP: FALSE
 # --------- Front Page
 # Comment: ----- Follow this pattern for up to 5 authors
 AddTitle: TRUE # Use FALSE when submitting to peer reviewed platform. This will remove author names.
-Author1: "Andrew Hyde # First Author - note the thanks message displayed as an italic footnote of first page.
+Author1: "Andrew Hyde"  # First Author - note the thanks message displayed as an italic footnote of first page.
 Ref1: "Stellenbosch University, South Africa" # First Author's Affiliation
 Email1: "23365935\\@sun.ac.za" # First Author's Email address
 
@@ -36,11 +36,11 @@ Email1: "23365935\\@sun.ac.za" # First Author's Email address
 # 
 # Author3: "John Doe"
 # Email3: "Joe\\@gmail.com"
-
-CorrespAuthor_1: TRUE  # If corresponding author is author 3, e.g., use CorrespAuthor_3: TRUE
-
-# Comment out below to remove both. JEL Codes only given if keywords also given.
-keywords: "Multivariate GARCH \\ALSI \\REITs" # Use \\sep to separate
+# 
+# CorrespAuthor_1: TRUE  # If corresponding author is author 3, e.g., use CorrespAuthor_3: TRUE
+# 
+# # Comment out below to remove both. JEL Codes only given if keywords also given.
+#keywords: "Multivariate GARCH \\DCC \\REITs" # Use \\sep to separate
 #JELCodes: "L250 \\sep L100"
 
 # ----- Manage headers and footers:
@@ -92,7 +92,7 @@ output:
     fig_width: 3.5 # Adjust default figure sizes. This can also be done in the chunks of the text.
     fig_height: 3.5
 abstract: |
-  Abstract to be written here.
+  This analysis of the current yield spreads in the local bond market places the current high spreads into historical context.
 ---
 
 <!-- First: Set your default preferences for chunk options: -->
@@ -101,7 +101,7 @@ abstract: |
 
 ```{r setup, include=FALSE}
 
-knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 5, fig.pos="H", fig.pos = 'H')
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width = 6.5, fig.height = 5.5, fig.pos="H", fig.pos = 'H')
 # Note: Include = FALSE implies the code is executed, but not printed in your pdf.
 # warning and message = FALSE implies ugly messages and warnings are removed from your pdf.
 # These should be picked up when you execute the command chunks (code sections below) in your rmd, not printed in your paper!
@@ -135,6 +135,7 @@ data_alsi[data_alsi == -Inf] <- NA
 # source in fuctions
 list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 
+set.seed(123)
 
 ```
 
@@ -150,133 +151,467 @@ list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.
 
 
 
-#  Methodology \label{Meth}
+# Data and Methodology \label{Methodology}
 
-## Subsection
-Ideally do not overuse subsections. It equates to bad writing.^[This is an example of a footnote by the way. Something that should also not be overused.]
+## Data
 
-## Math section
+The dataset used in this study is the ALSI returns data from 2005 to 2022, which included both traditional equities and REITs. Investigation into the data reveals that there are four unique sectors in the data, namely; Financials, Industrials, Resources and Property. There are missing values present in the dataset.
 
-Equations should be written as such:
+Given that the objective of this study is to explore the time varying correlation between the ALSI equities and REITs missing data poses a problem. To address this concern, the dataset is separated into two groups, one group for ALSI equities and the other for REITs. Next, the problem of missing values is dealt with by imputing values for both groups separately.
 
-\begin{align}
-\beta = \sum_{i = 1}^{\infty}\frac{\alpha^2}{\sigma_{t-1}^2} \label{eq1} \\
-\int_{x = 1}^{\infty}x_{i} = 1 \notag
-\end{align}
+Separating the data into two groups, before imputing values, is done to preserve the properties and distribution elements of the ALSI returns and REIT returns. With that in mind, missing values for the ALSI equities are imputed using returns distribution draw from the collective ALSI group less REITs. Missing values for each REIT equity are imputed using the returns distribution of that equity. This is done to enable analysis of correlation between REITS, as well as with the rest of the ALSI equities. The code used in this section follows a practical covered in Financial Econometrics 871 (Katzke, 2022b).
 
-If you would like to see the equations as you type in Rmarkdown, use $ symbols instead (see this for yourself by adjusted the equation):
+Figure 2.1 displays the available data for each REIT. Based on availability of data the following REITs are selected: Capital & Counties Properties PLC, Emira Property Fund Limited, Hyprop Investments Limited, Growthpoint Properties Limited, Resilient Reit Limited, Redefine Properties Limited and SA Corporate Real Estate Limited.
 
-$$
-\beta = \sum_{i = 1}^{\infty}\frac{\alpha^2}{\sigma_{t-1}^2} \\
-\int_{x = 1}^{\infty}x_{i} = 1
-$$
+Given that this analysis is conducted to explore the time-varying correlation relationships of equity pairs, returns data is log transformed and mean scaled so that the data used conforms to a normal distribution centered around its mean. This is especially important as this allows one to make inferences based on statistical assumptions.
 
-Note again the reference to equation \ref{eq1}. Writing nice math requires practice. Note I used a forward slashes to make a space in the equations. I can also align equations using  __\&__, and set to numbering only the first line. Now I will have to type ``begin equation'' which is a native \LaTeX command. Here follows a more complicated equation:
+```{r message=FALSE, warning=FALSE, fig.cap="REITs Dataset"}
 
+library(tidyverse)
 
-\begin{align}
-	y_t &= c + B(L) y_{t-1} + e_t   \label{eq2}    \\ \notag
-	e_t &= H_t^{1/2}  z_t ; \quad z_t \sim  N(0,I_N) \quad \& \quad H_t = D_tR_tD_t \\ \notag
-		D_t^2 &= {\sigma_{1,t}, \dots, \sigma_{N,t}}   \\ \notag
-		\sigma_{i,t}^2 &= \gamma_i+\kappa_{i,t}  v_{i, t-1}^2 +\eta_i  \sigma_{i, t-1}^2, \quad \forall i \\ \notag
-		R_{t, i, j} &= {diag(Q_{t, i, j}}^{-1}) . Q_{t, i, j} . diag(Q_{t, i, j}^{-1})  \\ \notag
-		Q_{t, i, j} &= (1-\alpha-\beta)  \bar{Q} + \alpha  z_t  z_t'  + \beta  Q_{t, i, j} \notag
-\end{align}
-
-Note that in \ref{eq2} I have aligned the equations by the equal signs. I also want only one tag, and I create spaces using ``quads''.
-
-See if you can figure out how to do complex math using the two examples provided in \ref{eq1} and \ref{eq2}.
-
-<!-- $$ -->
-<!-- This is a commented out section in the writing part. -->
-<!-- Comments are created by highlighting text, amnd pressing CTL+C -->
-<!-- \\begin{align} -->
-<!-- \\beta = \\alpha^2 -->
-<!-- \end{align} -->
-<!-- $$ -->
-
-# Results
-
-Tables can be included as follows. Use the _xtable_ (or kable) package for tables. Table placement = H implies Latex tries to place the table Here, and not on a new page (there are, however, very many ways to skin this cat. Luckily there are many forums online!).
+# add individual property stock and their weighted returns to perform DCC
+property_returns <- data_ALSI_returns %>%
+        filter(Sector == "Property") %>%
+        select(date, Tickers, Return, J433, Sector) %>%
+        na.omit(J433) %>% # remove observations that don't have weights i.e. NA
+        arrange(date, Tickers) %>%
+        select(date, Tickers, Return)
 
 
-\hfill
+graph_1 <- graph_1_reit_funcs(df_data = property_returns,
+                title = "JSE listed REITs over time ",
+                subtitle = "",
+                caption = "Note how many REITs have complete data sets",
+                xlabel = "",
+                ylabel = "")
 
-<!-- hfill can be used to create a space, like here between text and table. -->
-
-
-## Huxtable
-
-Huxtable is a very nice package for making working with tables between Rmarkdown and Tex easier.
-
-This cost some adjustment to the Tex templates to make it work, but it now works nicely.
-
-See documentation for this package [here](https://hughjonesd.github.io/huxtable/huxtable.html). A particularly nice addition of this package is for making the printing of regression results a joy (see [here](https://hughjonesd.github.io/huxtable/huxtable.html#creating-a-regression-table)). Here follows an example:
-
-
-If you are eager to use huxtable, comment out the Huxtable table in the Rmd template, and uncomment the colortbl package in your Rmd's root.
-
-Note that I do not include this in the ordinary template, as some latex users have complained it breaks when they build their Rmds (especially those using tidytex - I don't have this problem as I have the full Miktex installed on mine). Up to you, but I strongly recommend installing the package manually and using huxtable. To make this work, uncomment the _Adding additional latex packages_ part in yaml at the top of the Rmd file. Then comment out the huxtable example in the template below this line. Reknit, and enjoy.
-
-```{r, results = 'asis'}
-
-if(!require(huxtable)) install.packages(huxtable)
-library(huxtable)
-data(diamonds, package = 'ggplot2')
-Title <- "Regression Output"
-Label <- "Reg01"
-lm1 <- lm(price ~ carat, diamonds)
-lm2 <- lm(price ~ depth, diamonds)
-lm3 <- lm(price ~ carat + depth, diamonds)
-htab <-
-huxreg(lm1, lm2, lm3,
-                statistics = c(N = "nobs", R2 = "r.squared"),
-                note = "%stars%.") %>%
-  set_caption(Title) %>%
-  set_label(Label)
-# More settings:
-font_size(htab) <- 12
-# Let's change regression names: this is slightly hacky, but works. Comment out this section to see what the default looks like:
-  Names <- c( "Reg1", "Reg2", "Reg3")
-  for(i in 1:length(Names)) {
-    htab[1,][[1+i]] <- Names[i]
-  }
-# Now simply call the table:
-htab
+graph_1
 
 ```
 
-FYI - R also recently introduced the gt package, which is worthwhile exploring too.
+## Methodology
+A Dynamic Conditional Correlation Generalized AutoRegressive Conditional Heteroskedasticity (DCC GARCH) model is used to perform this analysis. This model allows for the estimation of time-varying conditional correlation structures that are noise reduced, taking the GARCH(1,1) model further by allowing for multivariate volatility modeling (Engle, 2002; Katzke, 2022d).
 
-# Lists
+The DCC model makes use of non-Linear combinations of univariate GARCH models to directly model the correlations as a dynamic time-varying process i.e. estimating the conditional correlation matrix directly (Engle, 2002).
 
-To add lists, simply using the following notation
+The DCC GARCH model follows a two-step approach.
 
-* This is really simple
+### Step One
+Estimates are obtained by fitting a univariate GARCH(1,1) model to the residuals of the vector autoregression (VAR) using the combined imputed data. The VAR allows for the examination of relationships between series over time and the residuals it produces $\alpha_{t}$ can be broken down into the structural volatility component $z_{t}$ and the noise component $\mu_{t}$, provided $\alpha_{t}$ are white noise errors/residuals Katzke, 2022c). 
 
-    + Just note the spaces here - writing in R you have to sometimes be pedantic about spaces...
+The DCC GARCH model is defined as follows:
 
-* Note that Rmarkdown notation removes the pain of defining \LaTeX environments!
+$$
+H_{t}=D_{t}. R_{t}. D_{t},
+$$
 
-# Conclusion
+where $H_{t}$ is positive definite variance-covariance matrix which is splits into identical diagonal matrices $D_{t}$ and $R_{t}$, the time-varying correlation estimates. The estimation of $R_{T}$ requires it to be inverted at each estimated period, therefore a proxy similar to a GARCH(1,1), denoted by $Q_{i j, t}$, is to be used (Engle, 2002).
 
-I hope you find this template useful. Remember, stackoverflow is your friend - use it to find answers to questions. Feel free to write me a mail if you have any questions regarding the use of this package. To cite this package, simply type citation("Texevier") in Rstudio to get the citation for @Texevier (Note that uncited references in your bibtex file will not be included in References).
 
-<!-- Make title of bibliography here: -->
-<!-- \newpage -->
+$$
+\begin{aligned}
+Q_{i j, t} & =\bar{Q}+a\left(z_{t-1} z_{t-1}^{\prime}-\bar{Q}\right)+b\left(Q_{i j, t-1}-\bar{Q}\right) \\
+& =(1-a-b) \bar{Q}+a z_{t-1} z_{t-1}^{\prime}+b . Q_{i j, t-1}
+\end{aligned}
+$$
+
+Where $Q_{i j, t}$ the unconditional (sample) variance estimate between series $i$ and $j$, and $\bar{Q}$ is the unconditional matrix of standardized residuals from each univariate pair estimate.
+
+The following equation is used to estimate $R_{t}$:
+
+$$
+R_{t}=\operatorname{diag}\left(Q_{t}\right)^{-1 / 2} Q_{t} . \operatorname{diag}\left(Q_{t}\right)^{-1 / 2} .
+$$
+
+Which has bivariate elements:
+
+$$
+R_{t}=\rho_{i j, t}=\frac{q_{i, j, t}}{\sqrt{q_{i i, t} \cdot q_{j j, t}}}
+$$
+
+The resulting DCC model is then formulated as:
+
+$$
+\begin{aligned}
+\varepsilon_{t} & \sim N\left(0, D_{t} \cdot R_{t} \cdot D_{t}\right) \\
+D_{t}^{2} & \sim \text { Univariate GARCH }(1,1) \text { processes } \forall(\mathrm{i}, \mathrm{j}), \mathrm{i} \neq \mathrm{j} \\
+z_{t} & =D_{t}^{-1} \cdot \varepsilon_{t} \\
+Q_{t} & =\bar{Q}(1-a-b)+a\left(z_{t}^{\prime} z_{t}\right)+b\left(Q_{t-1}\right) \\
+R_{t} & =\operatorname{Diag}\left(Q_{t}^{-1}\right) \cdot Q_{t} . \operatorname{Diag}\left(Q_{t}{ }^{-1}\right)
+\end{aligned}
+$$
+
+### Step Two
+Using the standardized residuals from step one, the dynamic, time-varying conditional correlations estimates can be obtained using a log-likelihood approach.
+
+The volatility approximation series that is estimated $H_{t}$, can then be standardized 
+and used in fitting a DCC model for $\eta_{t}$ (Katzke, 2022c).
+
+$$
+\eta_{i, t}=\frac{\hat{\alpha_{i, t}}}{\hat{\sigma_{i, t}}}
+$$
+The DDC GARCH model is run twice. The first iteration models the time-varying conditional correlation structure between the ALSI and REITs, as well as the time-varying correlation structure between the seven individual REITs included in the study. The analysis makes use of the average ALSI weighted returns and the weighted returns of the included REITs as to compare the conditinal correlation of variables that have been transformed in the same way. The code used in this section follows a practical covered in Financial Econometrics 871 and produces graphs of the time-varying correlations between pairs (Katzke, 2022c)
+
+The second applies a stratification method to the data before the DCC GARCH model is re-run. The stratification methods enables one to examine how these time-varying conditional correlation structure change in periods of low and high volatility. The stratification technique is used to isolate return dates when South African markets experienced high levels of volatility. To do this, the South African Rand is used as a benchmark index and is filtered for its own top and bottom decile quantile (10%) by monthly standard deviation of Rand volatility. These dates are then used to filter the ALSI_returns into dates with low and high volatility. The code used in this section follows a practical covered in Financial Econometrics 871 and produces graphs of the time-varying correlations between pairs (Katzke, 2022a).
+
+Following the stratification, the time-varying conditional correlation structure is mapped between Capital & Counties Properties PLC (Capco/CCO) and both the ALSI and other SA listed REITs. This section further explores the relationship between Capital & Counties Properties PLC, a UK based REIT and Redefine Properties Limited, an SA based REIT, whom are both listed on the JSE. The section produces graphs of the time-varying correlations between pairs to make inferences.
+
+
+# Results and Discussion \label{Results}
+
+```{r include=FALSE}
+################################################################################
+# IMPUTE DATA: ALSI less REIT.
+################################################################################
+
+# create a data set where property stocks have been removed from the Alsi_Returns data and re-weighted.
+# Now impute missing values using the 'impute_missing_values' function
+
+imputed_ALSI_returns_spread <- impute_missing_returns(
+    
+    return_mat = data_alsi %>% 
+        filter(Sector != "Property") %>%
+        select(date, Tickers, Return) %>% 
+        arrange(date) %>% 
+        select(date, Tickers, Return) %>% 
+        spread(Tickers, Return),
+        
+    impute_returns_method = "Drawn_Distribution_Collective")
+
+
+################################################################################
+# IMPUTE DATA: ALSI less REIT.
+################################################################################
+
+
+data_alsi_REIT <- data_alsi %>%
+        filter(Sector == "Property") %>%
+        select(date, Tickers, Return) %>%
+        spread(Tickers, Return)
+
+
+# select the columns that correspond to the following REITs equities.
+# REITs to include: CCO, EMI, GRT, HYP, RDF, RES, SAC
+data_alsi_REIT_red<- data_alsi_REIT[, c(1,14,19,26,30,45,47,52)]
+# Remember to include the date column
+# the dplyr func 'filter' nor the 'select' (once spread) did not work
+# the therfore diverted to base R to filter for the REITs that had data for decade
+
+# make tidy format once again
+data_alsi_REIT_reduced <- data_alsi_REIT_red %>% 
+                            gather(Tickers, Return, -date)
+
+# Now impute missing values using the 'impute_missing_values' function
+imputed_REIT_returns_spread <- impute_missing_returns(
+    
+    return_mat = data_alsi_REIT_reduced %>%
+        select(date, Tickers, Return) %>%
+        spread(Tickers, Return),
+        
+    impute_returns_method = "Drawn_Distribution_Own")
+
+#-------------------------------------------------------------------------------
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_ALSI_data_combined_use <- data_cleaning_func(df_data)
+
+
+```
+
+
+## Time-varying Correlation: REITs and ALSI
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# DCC GARCH model
+
+DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes <- DCCPre$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages, 
+# once detached can now run dccFit
+# when done then tidyr and dplyr 
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC <- dccFit(StdRes, type="Engle")
+pacman::p_load("tidyverse", "rmsfuns", "fmxdat", "tbl2xts", "broom")
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, fig.cap="Dynamic Conditional Correlations Graph"}
+
+graph_rename_func_mv(input_name_1 = "ALSI_",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI",
+                     subtitle = "2008 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+
+```
+
+
+
+```{r, figures-side, fig.show="hold", out.width="50%"}
+
+graph_rename_func_mv(input_name_1 = "ALSI_CCO",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and CCO",
+                     subtitle = "2008 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Correlation")
+
+graph_rename_func_mv(input_name_1 = "ALSI_EMI",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and EMI",
+                     subtitle = "2008 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Correlation")
+
+graph_rename_func_mv(input_name_1 = "ALSI_GRT",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and GRT",
+                     subtitle = "2008 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Correlation")
+
+graph_rename_func_mv(input_name_1 = "ALSI_HYP",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and HYP",
+                     subtitle = "2008 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Correlation")
+
+graph_rename_func_mv(input_name_1 = "ALSI_RES",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and RES",
+                     subtitle = "2008 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Correlation")
+
+graph_rename_func_mv(input_name_1 = "ALSI_RDF",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and RDF",
+                     subtitle = "2008 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Correlation")
+
+graph_rename_func_mv(input_name_1 = "ALSI_SAC",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and SAC",
+                     subtitle = "2008 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Correlation")
+
+
+```
+
+## Time-varying Correlation: Periods of High and Low Volatility
+
+In this section, periods of high USD/ZAR (Dollar Rand) volatility are isolated and used as to filter for the ALSI combined and imputed data. The premise being that periods of high Rand volatility can act as an indicator for high levels of volatility in South Africa financial markets and other asset classes. These highly volatile periods are then used as an index to filter the returns data for periods where South African markets were volatile.
+
+Given that the high volatility combine imputed ALSI returns data will have large missing gaps due to periods of moderate or low volatility, dynamic correlations between equity pairs will have to be charted for short periods of a time. This is due to the fact that the graphing function used will not skip whole year periods.
+
+Following this methodology of running multiple DCC models on smaller periods of high volatility decreases the run time of the model.
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_HI_Vol_ALSI_data_combined_ <- data_cleaning_func_hi_vol_2008_2022(df_data)
+
+#-------------------------------------------------------------------------------
+
+#The DCC model is then run and the estimates of time-varying correlation are produced.
+
+DCC_ <- dccPre(xts_HI_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes_ <- DCC_$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages,
+# once detached can now run dccFit
+# when done then tidyr and dplyr
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC_ <- dccFit(StdRes_, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+```
+
+
+```{r, fig.cap="Dynamic Conditional Correlations Graph"}
+hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                    input_name_2 = "_ALSI",
+                                    title = "Dynamic Conditional Correlations: ALSI and REITs",
+                                    subtitle = "Periods of High Rand Volatility, 2007 to 2022",
+                                    caption = "",
+                                    xlabel = "",
+                                    ylabel = "Rho")
+
+```
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_HI_Vol_ALSI_data_combined_ <- data_cleaning_func_hi_vol_2020(df_data)
+
+#-------------------------------------------------------------------------------
+
+#The DCC model is then run and the estimates of time-varying correlation are produced.
+
+DCC_ <- dccPre(xts_HI_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes_ <- DCC_$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages,
+# once detached can now run dccFit
+# when done then tidyr and dplyr
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC_ <- dccFit(StdRes_, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+```
+
+
+```{r, fig.cap="Dynamic Conditional Correlations Graph"}
+hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                    input_name_2 = "_ALSI",
+                                    title = "Dynamic Conditional Correlations: ALSI and REITs",
+                                    subtitle = "Periods of High Rand Volatility, 2020",
+                                    caption = "",
+                                    xlabel = "",
+                                    ylabel = "Rho")
+
+```
+
+
+ 
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_Low_Vol_ALSI_data_combined_ <- data_cleaning_func_Low_vol_2008_2022(df_data)
+
+#-------------------------------------------------------------------------------
+
+#The DCC model is then run and the estimates of time-varying correlation are produced.
+
+DCC_ <- dccPre(xts_Low_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes_ <- DCC_$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages,
+# once detached can now run dccFit
+# when done then tidyr and dplyr
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC_ <- dccFit(StdRes_, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+```
+
+
+```{r, fig.cap="Dynamic Conditional Correlations Graph"}
+Low_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                    input_name_2 = "_ALSI",
+                                    title = "Dynamic Conditional Correlations: ALSI and REITs",
+                                    subtitle = "Period of Low Volatility, 2007 to 2022",
+                                    caption = "",
+                                    xlabel = "",
+                                    ylabel = "Rho")
+
+```
+
+
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_Low_Vol_ALSI_data_combined_ <- data_cleaning_func_Low_vol_2014(df_data)
+
+#-------------------------------------------------------------------------------
+
+#The DCC model is then run and the estimates of time-varying correlation are produced.
+
+DCC_ <- dccPre(xts_Low_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+# After saving now the standardized residuals:
+StdRes_ <- DCC_$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages,
+# once detached can now run dccFit
+# when done then tidyr and dplyr
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC_ <- dccFit(StdRes_, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+```
+
+
+```{r, fig.cap="Dynamic Conditional Correlations Graph"}
+
+Low_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
+                                    input_name_2 = "_ALSI",
+                                    title = "Dynamic Conditional Correlations: ALSI and REITs",
+                                    subtitle = "Period of Low Volatility, 2014",
+                                    caption = "",
+                                    xlabel = "",
+                                    ylabel = "Rho")
+
+```
+
+
+
+## Time-varying Correlation: Capco vs Other REITs and ALSI
+
+```{r, fig.cap="Dynamic Conditional Correlations Graph"}
+
+graph_rename_func_mv(input_name_1 = "CCO.._",
+                     input_name_2 = "_CCO..",
+                     title = "Dynamic Conditional Correlations: Capco, the ALSI and SA REITs",
+                     subtitle = "",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+
+```
+
+
+```{r, fig.cap="Dynamic Conditional Correlations Graph"}
+
+graph_rename_func_mv(input_name_1 = "CCO.._RDF",
+                     input_name_2 = "_CCO",
+                     title = "Dynamic Conditional Correlations: Capco and Redefine",
+                     subtitle = "",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+
+```
+
+# Conclusion \label{Conclusion}
 
 \newpage
 
 # References {-}
 
-<div id="refs"></div>
+Engle, R. (2002) Dynamic Conditional Correlation: A Simple Class of Multivariate Generalized Autoregressive Conditional Heteroskedasticity Models. Journal of Business & Economic Statistics, 20, 339-350.
 
-
-# Appendix {-}
-
-## Appendix A {-}
-
-Some appendix information here
-
-## Appendix B {-}
 
