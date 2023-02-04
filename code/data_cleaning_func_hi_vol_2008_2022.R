@@ -15,8 +15,8 @@ data_cleaning_func_hi_vol_2008_2022 <- function(df_data){
         mutate(YearMonth = format(date, "%Y%B")) %>%
         group_by(YearMonth) %>% summarise(SD = sd(Return)*sqrt(252)) %>%
         # Top Decile Quantile overall (highly volatile month for ZAR:
-        mutate(TopQtile = quantile(SD, 0.9),
-               BotQtile = quantile(SD, 0.1))
+        mutate(TopQtile = quantile(SD, 0.8),
+               BotQtile = quantile(SD, 0.2))
 
 
     Hi_Vol <- ZARSD %>% filter(SD > TopQtile) %>% pull(YearMonth)
@@ -24,33 +24,45 @@ data_cleaning_func_hi_vol_2008_2022 <- function(df_data){
 
 #-------------------------------------------------------------------------------
 
-    combined_data_ALSI_REIT <- bind_rows(
-        # REITs
-        imputed_REIT_returns_spread %>%
-            gather(Tickers, Returns, -date) %>%
-            arrange(date) %>%
-            select(date, Tickers, Returns), # need the right order
+    # ALSI excl. REITs
+    ALSI_returns_performance <- data_ALSI_returns %>%
+        filter( !Sector %in% "Property") %>%
+        group_by(date) %>%
+        # Make weights sum to 1:
+        mutate(across(starts_with("J"), ~./sum(., na.rm=T))) %>%
+        summarise(Ret = sum( J203 * Return, na.rm=T)) %>%
+        # mutate( CW = Market.Cap / sum(Market.Cap, na.rm=T)) %>%
+        # summarise(Ret = sum( CW * Return, na.rm=T)) %>%
+        mutate(ALSI = Ret) %>%
+        select(date, ALSI)
 
-        # ALSI less REITs
-        imputed_ALSI_returns_spread %>%
-            gather(Tickers, Return, -date) %>%
-            arrange(date) %>%
-            group_by(date) %>% # group_by date so summation will be calculated for each Ticker for the same date
-            mutate(Returns = mean(Return)) %>%
-            distinct(., date, .keep_all = TRUE) %>% # to select a unique date row
-            mutate(Tickers = "ALSI") %>%
-            select(date, Tickers, Returns)
+    #   REITs
+    REIT_returns_performance <- data_ALSI_returns %>%
+        filter( Sector %in% "Property") %>%
+        group_by(date) %>%
+        # Make weights sum to 1:
+        mutate(across(starts_with("J"), ~./sum(., na.rm=T))) %>%
+        summarise(Ret = sum( J203 * Return, na.rm=T))  %>%
+        # mutate( CW = Market.Cap / sum(Market.Cap, na.rm=T)) %>%
+        # summarise(Ret = sum( CW * Return, na.rm=T)) %>%
+        mutate(REIT = Ret) %>%
+        select(date, REIT)
+#-------------------------------------------------------------------------------
+    # COMBINE
+    df_returns_ALSI_REIT_data <- left_join(ALSI_returns_performance,
+                                           REIT_returns_performance,
 
-    ) %>% mutate(Return = # scale the log scaled daily returns
-                     Returns - mean(Returns, na.rm = F)) %>%
+                                           by = "date") %>%
 
-        select(date, Tickers, Return) %>%
+        gather(Tickers, Return, -date) %>%
         arrange(date) %>%
-        filter(date >= as.Date("2007-01-01") & date <= as.Date("2022-12-31")) %>%
+        #filter(date >= as.Date("2007-01-01") & date <= as.Date("2022-12-31")) %>%
           mutate(YearMonth = format(date, "%Y%B")) #%>% # create year months column to filter against
 
 
-hi_vol_data <- combined_data_ALSI_REIT %>% filter(YearMonth %in% Hi_Vol) %>% # filter for months of high volatility
+
+
+hi_vol_data <- df_returns_ALSI_REIT_data %>% filter(YearMonth %in% Hi_Vol) %>% # filter for months of high volatility
             select(date, Return, Tickers)
 
     xts_data_combined <-

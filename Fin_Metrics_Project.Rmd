@@ -3,7 +3,7 @@
 # Remove comments and add values where applicable.
 # The descriptions below should be self-explanatory
 
-title: "Time-varying Correlation of South African Property Stocks and the ALSI"
+title: "Time-varying Correlation of South African Property Stocks and the JSE All Share Weighted Index"
 #subtitle: "This will appear as Right Header"
 
 documentclass: "elsarticle"

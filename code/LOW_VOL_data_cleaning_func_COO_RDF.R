@@ -1,0 +1,101 @@
+
+# wrap in a function to neaten it up
+LOW_VOL_data_cleaning_func_COO_RDF <- function(df_data){
+
+
+    #-------------------------------------------------------------------------------
+
+    zar <-  read_rds("data/usdzar.rds") %>%
+        mutate(Return = Price/lag(Price)-1)%>%
+        filter(date >= as.Date("2018-01-01") & date <= as.Date("2022-12-31")) %>%
+        filter(Name == "SouthAfrica_Cncy") %>%
+        select(-Name)
+
+
+    ZARSD <- zar %>%
+        mutate(YearMonth = format(date, "%Y%B")) %>%
+        group_by(YearMonth) %>% summarise(SD = sd(Return)*sqrt(252)) %>%
+        # Top Decile Quantile overall (highly volatile month for ZAR:
+        mutate(TopQtile = quantile(SD, 0.8),
+               BotQtile = quantile(SD, 0.2))
+
+
+    Hi_Vol <- ZARSD %>% filter(SD > TopQtile) %>% pull(YearMonth)
+    LOW_Vol <- ZARSD %>% filter(SD < BotQtile) %>% pull(YearMonth)
+
+    #-------------------------------------------------------------------------------
+
+
+# COMBINE
+
+    # ALSI excl. REITs
+    ALSI_returns_performance <- data_ALSI_returns %>%
+            filter( !Sector %in% "Property") %>%
+            group_by(date) %>%
+        # Make weights sum to 1:
+        mutate(across(starts_with("J"), ~./sum(., na.rm=T))) %>%
+        summarise(ALSI = sum( J203 * Return, na.rm=T)) %>%
+            # mutate( CW = Market.Cap / sum(Market.Cap, na.rm=T)) %>%
+            # summarise(Ret = sum( CW * Return, na.rm=T)) %>%
+            #mutate(ALSI = Ret) %>%
+            #(Tickers ="ALSI") %>%
+            select(date, ALSI)
+
+
+    # REITs
+    REIT_returns_performance <- data_ALSI_returns %>%
+            filter( Sector %in% "Property") %>%
+            group_by(date) %>%
+            #na.omit(J203) %>%
+            # mutate( CW = Market.Cap / sum(Market.Cap, na.rm=T)) %>%
+            # mutate(Return = CW* Return)  %>%
+            # Make weights sum to 1:
+            na.omit(J203) %>%
+            mutate(across(starts_with("J"), ~./sum(., na.rm=T))) %>%
+            mutate(Return = J203 * Return)  %>%
+            # mutate( CW = Market.Cap / sum(Market.Cap, na.rm=T)) %>%
+            # summarise(Ret = sum( CW * Return, na.rm=T)) %>%
+            #mutate(REIT = Ret) %>%
+            select(date, Tickers, Return) %>%
+                spread(Tickers, Return)
+
+
+            # select the columns that correspond to the following REITs equities.
+            # REITs to include: CCO, EMI, GRT, HYP, RDF, RES, SAC
+            #data_alsi_REIT_reduced <- REIT_returns_performance[, c(1,25,29,42,44,48,55)]
+            data_alsi_REIT_reduced <- REIT_returns_performance[, c(1,13,42)]
+            #data_alsi_REIT_reduced <- REIT_returns_performance[, c(1,13,18,25,29,42,44,48,55)]
+
+            #data_alsi_REIT_red <- data_alsi_REIT_reduced %>%
+                #gather(Tickers, Return, -date)
+
+#-------------------------------------------------------------------------------
+# COMBINE
+df_returns_ALSI_REIT_data <- left_join(ALSI_returns_performance,
+                                       data_alsi_REIT_reduced,
+
+                                       by = "date") %>%
+
+    gather(Tickers, Return, -date) %>%
+    arrange(date) %>%
+    filter(date >= as.Date("2018-06-01") & date <= as.Date("2022-12-31")) %>%
+    mutate(YearMonth = format(date, "%Y%B")) #%>% # create year months column to filter against
+
+
+
+# filter by date
+LOW_vol_data <- df_returns_ALSI_REIT_data %>% filter(YearMonth %in% LOW_Vol) %>% # filter for months of high volatility
+    select(date, Return, Tickers)
+
+xts_data_combined <-
+    LOW_vol_data %>%
+    tbl2xts::tbl_xts(., cols_to_xts = "Return", spread_by = "Tickers")
+
+
+
+xts_data_combined
+
+}
+
+
+

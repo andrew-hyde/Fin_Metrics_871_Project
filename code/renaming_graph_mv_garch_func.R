@@ -61,7 +61,7 @@ graph_rename_func_mv <- function(input_name_1, input_name_2, title, subtitle, ca
 
 
         theme() +
-        theme(axis.text.x = element_text(angle = 0, hjust = -1)) +
+        theme(axis.text.x = element_text(angle = 0, hjust = 0)) +
         theme(legend.position="bottom") +
         theme(legend.title = element_blank())
 

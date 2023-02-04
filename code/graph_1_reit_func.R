@@ -4,16 +4,20 @@ graph_1_reit_funcs <- function(df_data, title, subtitle, caption, xlabel, ylabel
     library(tidyverse)
 ################################################################################
 
-
-
+property_returns <- data_ALSI_returns %>%
+        filter(Sector == "Property") %>%
+        select(date, Tickers, Return, J203, Sector) %>%
+        mutate(Return = sum( J203 * Return, na.rm=T)) %>% # remove observations that don't have weights i.e. NA
+        arrange(date, Tickers) %>%
+        select(date, Tickers, Return)
 
 
 ################################################################################
 
-graph <- df_data %>% ggplot() +
+graph <- property_returns %>% ggplot() +
 
     geom_line(aes(x = date, y = Return, color = Tickers), alpha = 0.5,
-              size = 0.2) +
+              size = 1) +
 
     #geom_line(aes(x = date, y = value, color = label), alpha = 0.8,
     # size = 1) +

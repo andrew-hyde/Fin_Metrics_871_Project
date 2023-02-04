@@ -8,7 +8,7 @@ data_cleaning_func_hi_vol_2011 <- function(df_data){
 
     zar <-  read_rds("data/usdzar.rds") %>%
         mutate(Return = Price/lag(Price)-1)%>%
-        filter(date >= as.Date("2005-01-01") & date <= as.Date("2022-12-31")) %>%
+        filter(date >= as.Date("2011-01-01") & date <= as.Date("2012-12-31")) %>%
         filter(Name == "SouthAfrica_Cncy") %>%
         select(-Name)
 
@@ -22,7 +22,7 @@ data_cleaning_func_hi_vol_2011 <- function(df_data){
 
 
     Hi_Vol <- ZARSD %>% filter(SD > TopQtile) %>% pull(YearMonth)
-    Low_Vol <- ZARSD %>% filter(SD < BotQtile) %>% pull(YearMonth)
+    #Low_Vol <- ZARSD %>% filter(SD < BotQtile) %>% pull(YearMonth)
 
 #-------------------------------------------------------------------------------
 
