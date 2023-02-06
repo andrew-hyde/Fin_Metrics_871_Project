@@ -48,7 +48,7 @@ I do notice that there are Tickers with missing values and some that have not be
 
 Next, I source in all the functions built to be used to conduct the analysis. 
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE}
 
 # read in the data
 data_ALSI_returns <- read_rds("data/Alsi_Returns.rds") %>% 
@@ -169,7 +169,7 @@ I follow the practical code closely to render the model. I amend code and nested
 
 A topdown a approach is made use of here to conduct the analysis.
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE}
 
 # use dccPre to fit the univariate GARCH models to each series in the data frame of returns.
 # Let's select a VAR order of zero for the mean equation, and use the mean of each series.
@@ -203,7 +203,7 @@ The DCC model is then run and the estimates of time-varying correlation are fitt
 
 This procedure is run repeatedily changing the input data each so to add to the depth of then analysis.
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE}
 
 ################################################################################
 # Sum ALSI vs Sum REITs
@@ -246,7 +246,7 @@ graph_rename_func_mv(input_name_1 = "ALSI_",
 
 This process is repeated for returns data where weighted total daily returns have been calculate for each sector and then the conditional correlations are estimated using the same method as above. The results are then plotted below.
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE}
 # DCC GARCH model
 
 ################################################################################
@@ -294,7 +294,7 @@ REITs to include: GRT, HYP, RDF, RES, SAC, VKE.
 
 Following the same procedure estimates are estimated, fitted and then graphed.
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE}
 
 
 
@@ -395,7 +395,7 @@ Following this methodology of running multiple DCC models on smaller periods of 
 
 Here the same procedure is followed to generate co-movement graphs however dates are filter for using the Rand volatility dates
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE}
 
 # Use the cleaning func to warngle data and get into 'xts' format
 xts_HI_Vol_ALSI_data_combined_ <- data_cleaning_func_hi_vol_2008_2022(df_data)
@@ -434,7 +434,7 @@ hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
 
 And this is performed for periods of low volatility as well. The only thing that changes is the which sets of dates, for high or low vol, are used to filter the ALSI data
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE}
 
 # Use the cleaning func to warngle data and get into 'xts' format
 xts_Low_Vol_ALSI_data_combined_ <- data_cleaning_func_Low_vol_2008_2022(df_data)
@@ -475,7 +475,7 @@ Low_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
 
 I now perform the safe operations as perform by slight amending the code and naming new functions to call out. Here the individual REITs CCO and RDF are selected to analysis co-movements between REITs in different countries using the same 'dcc' function.
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE}
 
 ################################################################################
 # Sum ALSI vs COO and RDF
@@ -528,7 +528,7 @@ graph_rename_func_mv(input_name_1 = "CCO.._RDF",
 
 Using the same code to stratify the data for high and low Rand volatility periods. I know can determine how changes in the Rand effect these stocks on an individual level.
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE}
 
 ################################################################################
 # Sum ALSI vs COO and RDF
@@ -566,7 +566,7 @@ graph_rename_func_mv(input_name_1 = "CCO.._RDF",
 
 Like with the first stratification the code is reused of periods of low volatility as well.
 
-```{r message=FALSE, warning=FALSE, include=FALSE}
+```{r message=FALSE, warning=FALSE}
 
 ################################################################################
 # Sum ALSI vs COO and RDF

@@ -33,6 +33,17 @@ have not been included in the ALSI as they have zero weights.
 Next, I source in all the functions built to be used to conduct the
 analysis.
 
+    # read in the data
+    data_ALSI_returns <- read_rds("data/Alsi_Returns.rds") %>% 
+            select(date, Tickers, Return, Sector, J203, Market.Cap) %>% 
+            arrange(date, Tickers)
+    # Remove the 'SJ' and 'Equity' from Tickers
+    data_ALSI_returns$Tickers <- gsub("SJ|Equity", "", data_ALSI_returns$Tickers)
+    # there are many NAs/NaNs that could pose a problem
+
+    # source in fuctions
+    list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
+
 ## Data Insights
 
 I make use of the dplyr package to determine how many unique sectors are
@@ -155,6 +166,27 @@ neat. I plot the estimates of volatility for each series from ‘dccPre’.
 
 A topdown a approach is made use of here to conduct the analysis.
 
+    # use dccPre to fit the univariate GARCH models to each series in the data frame of returns.
+    # Let's select a VAR order of zero for the mean equation, and use the mean of each series.
+
+    # Then, for every series, a standard univariate GARCH(1,1) is run - giving us:
+    # et and sigmat, which is then used to calculate the standardized resids, zt.
+    # zt is used in DCC calcs after.
+
+    # SEE: q6_nested_graph_function.R (NESTED FUNC)
+    # result
+    Vol_ALSI_REIT <- compare_vol_mv_garch_func(df_data)
+
+    ## Sample mean of the returns:  0.000582957 0.0004614094 
+    ## Component:  1 
+    ## Estimates:  2e-06 0.094008 0.890164 
+    ## se.coef  :  0 0.008922 0.010187 
+    ## t-value  :  4.971216 10.5361 87.37819 
+    ## Component:  2 
+    ## Estimates:  3e-06 0.143369 0.835426 
+    ## se.coef  :  0 0.012403 0.012595 
+    ## t-value  :  6.922558 11.55944 66.33011
+
 I plot the noise reduce volatility of JSE listed ALSI and REIT equities
 included in this study. This procedure is wrapped in the above function
 and follows the same procedure using the ‘dcc’ package as done below.
@@ -181,6 +213,41 @@ are fitted.
 This procedure is run repeatedily changing the input data each so to add
 to the depth of then analysis.
 
+    ################################################################################
+    # Sum ALSI vs Sum REITs
+    ################################################################################
+
+    # Use the cleaning func to warngle data and get into 'xts' format
+    xts_ALSI_data_combined_use <- data_cleaning_func(df_data)
+
+    DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = T, p = 0)
+
+    ## Sample mean of the returns:  0.000582957 0.0004614094 
+    ## Component:  1 
+    ## Estimates:  2e-06 0.094008 0.890164 
+    ## se.coef  :  0 0.008922 0.010187 
+    ## t-value  :  4.971216 10.5361 87.37819 
+    ## Component:  2 
+    ## Estimates:  3e-06 0.143369 0.835426 
+    ## se.coef  :  0 0.012403 0.012595 
+    ## t-value  :  6.922558 11.55944 66.33011
+
+    # After saving now the standardized residuals:
+    StdRes <- DCCPre$sresi
+    # We can now use these std. resids to calculate the DCC model.
+    # In order to fit the DCC model detach the tidyr and dplyr packages, 
+    # once detached can now run dccFit
+    # when done then tidyr and dplyr 
+    detach("package:tidyverse", unload=TRUE)
+    detach("package:tbl2xts", unload=TRUE)
+    DCC <- dccFit(StdRes, type="Engle")
+
+    ## Estimates:  0.95 0.02503006 8.020321 
+    ## st.errors:  0.01463392 0.005825223 0.5337312 
+    ## t-values:   64.91768 4.296841 15.02689
+
+    pacman::p_load("tidyverse", "tbl2xts", "broom")
+
 The model on returns data from the JSE FTSE All Share Index generates
 time-varying conditional correlation estimates that I plot making use of
 some code from class practicals. The code calculates the bivariate
@@ -204,6 +271,51 @@ returns have been calculate for each sector and then the conditional
 correlations are estimated using the same method as above. The results
 are then plotted below.
 
+    # DCC GARCH model
+
+    ################################################################################
+    # ALSI Correlation by Sector
+    ################################################################################
+
+    # Use the cleaning func to warngle data and get into 'xts' format
+    xts_ALSI_data_combined_use <- sector_data_cleaning_func(df_data)
+
+    DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = T, p = 0)
+
+    ## Sample mean of the returns:  0.0006486978 0.0004614094 0.0005219509 0.0006269435 
+    ## Component:  1 
+    ## Estimates:  3e-06 0.064242 0.924782 
+    ## se.coef  :  1e-06 0.006382 0.007413 
+    ## t-value  :  4.353249 10.06543 124.7438 
+    ## Component:  2 
+    ## Estimates:  3e-06 0.143369 0.835426 
+    ## se.coef  :  0 0.012403 0.012595 
+    ## t-value  :  6.922558 11.55944 66.33011 
+    ## Component:  3 
+    ## Estimates:  4e-06 0.105609 0.877805 
+    ## se.coef  :  1e-06 0.009568 0.010871 
+    ## t-value  :  5.116441 11.03752 80.74382 
+    ## Component:  4 
+    ## Estimates:  3e-06 0.099157 0.882423 
+    ## se.coef  :  0 0.009287 0.010707 
+    ## t-value  :  5.289404 10.67644 82.41168
+
+    # After saving now the standardized residuals:
+    StdRes <- DCCPre$sresi
+    # We can now use these sresids to calculate the DCC model.
+    # In order to fit the DCC model detach the tidyr and dplyr packages, 
+    # once detached can now run dccFit
+    # when done then tidyr and dplyr 
+    detach("package:tidyverse", unload=TRUE)
+    detach("package:tbl2xts", unload=TRUE)
+    DCC <- dccFit(StdRes, type="Engle")
+
+    ## Estimates:  0.95 0.03267037 9.070108 
+    ## st.errors:  0.005898765 0.003104605 0.4529528 
+    ## t-values:   161.0507 10.5232 20.0244
+
+    pacman::p_load("tidyverse", "tbl2xts", "broom")
+
     graph_rename_func_mv(input_name_1 = "Property_",
                          input_name_2 = "_Property",
                          title = "Dynamic Conditional Correlations: JSE ALSI by Sector",
@@ -223,6 +335,61 @@ REITs to include: GRT, HYP, RDF, RES, SAC, VKE.
 
 Following the same procedure estimates are estimated, fitted and then
 graphed.
+
+    ################################################################################
+    # Sum ALSI vs Individual REITs
+    ################################################################################
+
+    # Use the cleaning func to warngle data and get into 'xts' format
+    xts_ALSI_data_combined_use <- data_cleaning_func_indi_REIT(df_data)
+
+    DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = T, p = 0)
+
+    ## Sample mean of the returns:  0.0004235497 4.674865e-05 1.950086e-05 1.749393e-05 3.245661e-05 1.208517e-05 1.079732e-05 
+    ## Component:  1 
+    ## Estimates:  3e-06 0.091276 0.884977 
+    ## se.coef  :  1e-06 0.012946 0.01679 
+    ## t-value  :  3.541437 7.050301 52.70934 
+    ## Component:  2 
+    ## Estimates:  0 0.121294 0.857423 
+    ## se.coef  :  0 0.015272 0.016986 
+    ## t-value  :  4.625104 7.942116 50.47732 
+    ## Component:  3 
+    ## Estimates:  0 0.135562 0.829398 
+    ## se.coef  :  0 0.018074 0.020953 
+    ## t-value  :  5.005064 7.500297 39.58377 
+    ## Component:  4 
+    ## Estimates:  0 0.104502 0.876085 
+    ## se.coef  :  0 0.013245 0.015453 
+    ## t-value  :  4.147583 7.890113 56.69196 
+    ## Component:  5 
+    ## Estimates:  0 0.121697 0.868939 
+    ## se.coef  :  0 0.012451 0.011981 
+    ## t-value  :  4.769893 9.774229 72.5268 
+    ## Component:  6 
+    ## Estimates:  0 0.107955 0.876044 
+    ## se.coef  :  0 0.011632 0.012319 
+    ## t-value  :  4.590888 9.280462 71.11215 
+    ## Component:  7 
+    ## Estimates:  0 0.10624 0.883638 
+    ## se.coef  :  0 0.013861 0.014489 
+    ## t-value  :  3.892706 7.664749 60.98581
+
+    # After saving now the standardized residuals:
+    StdRes <- DCCPre$sresi
+    # We can now use these sresids to calculate the DCC model.
+    # In order to fit the DCC model detach the tidyr and dplyr packages, 
+    # once detached can now run dccFit
+    # when done then tidyr and dplyr 
+    detach("package:tidyverse", unload=TRUE)
+    detach("package:tbl2xts", unload=TRUE)
+    DCC <- dccFit(StdRes, type="Engle")
+
+    ## Estimates:  0.9451738 0.01240002 8.112577 
+    ## st.errors:  0.01618379 0.002500119 0.3618433 
+    ## t-values:   58.4025 4.959773 22.42014
+
+    pacman::p_load("tidyverse", "tbl2xts", "broom")
 
     graph_rename_func_mv(input_name_1 = "ALSI",
                          input_name_2 = "_ALSI",
@@ -311,6 +478,41 @@ periods of high volatility decreases the run time of the model.
 Here the same procedure is followed to generate co-movement graphs
 however dates are filter for using the Rand volatility dates
 
+    # Use the cleaning func to warngle data and get into 'xts' format
+    xts_HI_Vol_ALSI_data_combined_ <- data_cleaning_func_hi_vol_2008_2022(df_data)
+
+    #-------------------------------------------------------------------------------
+
+    #The DCC model is then run and the estimates of time-varying correlation are produced.
+
+    DCC_ <- dccPre(xts_HI_Vol_ALSI_data_combined_, include.mean = T, p = 0)
+
+    ## Sample mean of the returns:  -5.803068e-05 -0.0003070326 
+    ## Component:  1 
+    ## Estimates:  1.2e-05 0.158702 0.811963 
+    ## se.coef  :  4e-06 0.028388 0.028632 
+    ## t-value  :  3.163277 5.590477 28.35861 
+    ## Component:  2 
+    ## Estimates:  1.4e-05 0.386498 0.629849 
+    ## se.coef  :  4e-06 0.068918 0.048556 
+    ## t-value  :  3.719094 5.608057 12.97161
+
+    # After saving now the standardized residuals:
+    StdRes_ <- DCC_$sresi
+    # We can now use these sresids to calculate the DCC model.
+    # In order to fit the DCC model detach the tidyr and dplyr packages,
+    # once detached can now run dccFit
+    # when done then tidyr and dplyr
+    detach("package:tidyverse", unload=TRUE)
+    detach("package:tbl2xts", unload=TRUE)
+    DCC_ <- dccFit(StdRes_, type="Engle")
+
+    ## Estimates:  0.7395365 0.03261871 6.551065 
+    ## st.errors:  0.2671019 0.03256171 0.8039966 
+    ## t-values:   2.768743 1.001751 8.148125
+
+    pacman::p_load("tidyverse", "tbl2xts", "broom")
+
 Again the same graphing convention is used.
 
     hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
@@ -326,6 +528,41 @@ Again the same graphing convention is used.
 And this is performed for periods of low volatility as well. The only
 thing that changes is the which sets of dates, for high or low vol, are
 used to filter the ALSI data
+
+    # Use the cleaning func to warngle data and get into 'xts' format
+    xts_Low_Vol_ALSI_data_combined_ <- data_cleaning_func_Low_vol_2008_2022(df_data)
+
+    #-------------------------------------------------------------------------------
+
+    #The DCC model is then run and the estimates of time-varying correlation are produced.
+
+    DCC_ <- dccPre(xts_Low_Vol_ALSI_data_combined_, include.mean = T, p = 0)
+
+    ## Sample mean of the returns:  0.0008707546 0.0006300748 
+    ## Component:  1 
+    ## Estimates:  1e-05 0.116359 0.771263 
+    ## se.coef  :  4e-06 0.037881 0.074422 
+    ## t-value  :  2.223659 3.071685 10.36333 
+    ## Component:  2 
+    ## Estimates:  3e-06 0.160288 0.809421 
+    ## se.coef  :  1e-06 0.036993 0.039233 
+    ## t-value  :  2.839723 4.332887 20.6313
+
+    # After saving now the standardized residuals:
+    StdRes_ <- DCC_$sresi
+    # We can now use these sresids to calculate the DCC model.
+    # In order to fit the DCC model detach the tidyr and dplyr packages,
+    # once detached can now run dccFit
+    # when done then tidyr and dplyr
+    detach("package:tidyverse", unload=TRUE)
+    detach("package:tbl2xts", unload=TRUE)
+    DCC_ <- dccFit(StdRes_, type="Engle")
+
+    ## Estimates:  0.7566106 0.02805932 6.698113 
+    ## st.errors:  0.2927896 0.02567968 0.8880226 
+    ## t-values:   2.584145 1.092666 7.542728
+
+    pacman::p_load("tidyverse", "tbl2xts", "broom")
 
     Low_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
                                         input_name_2 = "_ALSI",
@@ -343,6 +580,45 @@ I now perform the safe operations as perform by slight amending the code
 and naming new functions to call out. Here the individual REITs CCO and
 RDF are selected to analysis co-movements between REITs in different
 countries using the same ‘dcc’ function.
+
+    ################################################################################
+    # Sum ALSI vs COO and RDF
+    ################################################################################
+
+    # Use the cleaning func to warngle data and get into 'xts' format
+    xts_ALSI_data_combined_use <- data_cleaning_func_COO_RDF(df_data)
+
+    DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = T, p = 0)
+
+    ## Sample mean of the returns:  0.000413801 -2.089139e-05 -5.548415e-05 
+    ## Component:  1 
+    ## Estimates:  1e-05 0.10904 0.825864 
+    ## se.coef  :  3e-06 0.02515 0.041374 
+    ## t-value  :  2.935589 4.335614 19.96109 
+    ## Component:  2 
+    ## Estimates:  0 0.064232 0.925969 
+    ## se.coef  :  0 0.013177 0.016006 
+    ## t-value  :  2.060676 4.874433 57.8512 
+    ## Component:  3 
+    ## Estimates:  0 0.125367 0.853158 
+    ## se.coef  :  0 0.021801 0.023558 
+    ## t-value  :  3.283605 5.750526 36.21482
+
+    # After saving now the standardized residuals:
+    StdRes <- DCCPre$sresi
+    # We can now use these sresids to calculate the DCC model.
+    # In order to fit the DCC model detach the tidyr and dplyr packages, 
+    # once detached can now run dccFit
+    # when done then tidyr and dplyr 
+    detach("package:tidyverse", unload=TRUE)
+    detach("package:tbl2xts", unload=TRUE)
+    DCC <- dccFit(StdRes, type="Engle")
+
+    ## Estimates:  0.95 0.01700413 7.169061 
+    ## st.errors:  0.394297 0.0638191 0.6652286 
+    ## t-values:   2.409351 0.2664427 10.77684
+
+    pacman::p_load("tidyverse", "tbl2xts", "broom")
 
 Results are then plotted below using a the same graphing function as
 before compare results with the ALSI.
@@ -374,6 +650,45 @@ Using the same code to stratify the data for high and low Rand
 volatility periods. I know can determine how changes in the Rand effect
 these stocks on an individual level.
 
+    ################################################################################
+    # Sum ALSI vs COO and RDF
+    ################################################################################
+
+    # Use the cleaning func to warngle data and get into 'xts' format
+    xts_ALSI_data_combined_use <- HI_VOL_data_cleaning_func_COO_RDF(df_data)
+
+    DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = T, p = 0)
+
+    ## Sample mean of the returns:  0.0002883105 -4.92663e-05 -0.0002152717 
+    ## Component:  1 
+    ## Estimates:  1.5e-05 0.180766 0.784107 
+    ## se.coef  :  9e-06 0.05478 0.056648 
+    ## t-value  :  1.61825 3.299881 13.84175 
+    ## Component:  2 
+    ## Estimates:  0 0.140941 0.846334 
+    ## se.coef  :  0 0.047555 0.043474 
+    ## t-value  :  1.414182 2.963768 19.46761 
+    ## Component:  3 
+    ## Estimates:  0 0.325531 0.737188 
+    ## se.coef  :  0 0.089424 0.050269 
+    ## t-value  :  1.326958 3.640324 14.66498
+
+    # After saving now the standardized residuals:
+    StdRes <- DCCPre$sresi
+    # We can now use these sresids to calculate the DCC model.
+    # In order to fit the DCC model detach the tidyr and dplyr packages, 
+    # once detached can now run dccFit
+    # when done then tidyr and dplyr 
+    detach("package:tidyverse", unload=TRUE)
+    detach("package:tbl2xts", unload=TRUE)
+    DCC <- dccFit(StdRes, type="Engle")
+
+    ## Estimates:  0.9132474 0.02063827 7.124898 
+    ## st.errors:  0.06150703 0.01702183 1.637632 
+    ## t-values:   14.84785 1.212459 4.350732
+
+    pacman::p_load("tidyverse", "tbl2xts", "broom")
+
     graph_rename_func_mv(input_name_1 = "CCO.._RDF",
                          input_name_2 = "_CCO",
                          title = "Dynamic Conditional Correlations: ALSI, CCO and RDF",
@@ -386,6 +701,45 @@ these stocks on an individual level.
 
 Like with the first stratification the code is reused of periods of low
 volatility as well.
+
+    ################################################################################
+    # Sum ALSI vs COO and RDF
+    ################################################################################
+
+    # Use the cleaning func to warngle data and get into 'xts' format
+    xts_ALSI_data_combined_use <- LOW_VOL_data_cleaning_func_COO_RDF(df_data)
+
+    DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = T, p = 0)
+
+    ## Sample mean of the returns:  0.0002268075 -1.483966e-06 0.0001572208 
+    ## Component:  1 
+    ## Estimates:  0 0 1 
+    ## se.coef  :  2e-06 0.030238 0.021203 
+    ## t-value  :  0.030889 0 47.16399 
+    ## Component:  2 
+    ## Estimates:  0 0.071708 0.811478 
+    ## se.coef  :  0 0.05863 0.141883 
+    ## t-value  :  1.066651 1.223064 5.719352 
+    ## Component:  3 
+    ## Estimates:  1e-06 0.09683 0.786296 
+    ## se.coef  :  1e-06 0.082234 0.13628 
+    ## t-value  :  1.23541 1.177502 5.769706
+
+    # After saving now the standardized residuals:
+    StdRes <- DCCPre$sresi
+    # We can now use these sresids to calculate the DCC model.
+    # In order to fit the DCC model detach the tidyr and dplyr packages, 
+    # once detached can now run dccFit
+    # when done then tidyr and dplyr 
+    detach("package:tidyverse", unload=TRUE)
+    detach("package:tbl2xts", unload=TRUE)
+    DCC <- dccFit(StdRes, type="Engle")
+
+    ## Estimates:  0.8783672 0.049999 6.156317 
+    ## st.errors:  0.0952908 0.03569148 1.402335 
+    ## t-values:   9.217754 1.400866 4.390048
+
+    pacman::p_load("tidyverse", "tbl2xts", "broom")
 
 Again, the same graphing function using ggplot is used for these
 results.
