@@ -374,7 +374,7 @@ Using the same code to stratify the data for high and low Rand
 volatility periods. I know can determine how changes in the Rand effect
 these stocks on an individual level.
 
-    graph_rename_func_mv(input_name_1 = "CCO",
+    graph_rename_func_mv(input_name_1 = "CCO.._RDF",
                          input_name_2 = "_CCO",
                          title = "Dynamic Conditional Correlations: ALSI, CCO and RDF",
                          subtitle = "High Volatility, 2018 to 2022",
@@ -390,7 +390,7 @@ volatility as well.
 Again, the same graphing function using ggplot is used for these
 results.
 
-    graph_rename_func_mv(input_name_1 = "CCO",
+    graph_rename_func_mv(input_name_1 = "CCO.._RDF",
                          input_name_2 = "_CCO",
                          title = "Dynamic Conditional Correlations: ALSI, CCO and RDF",
                          subtitle = "Low Volatility, 2018 to 2022",

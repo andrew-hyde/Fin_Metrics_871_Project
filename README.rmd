@@ -554,7 +554,7 @@ pacman::p_load("tidyverse", "tbl2xts", "broom")
 
 ```{r}
 
-graph_rename_func_mv(input_name_1 = "CCO",
+graph_rename_func_mv(input_name_1 = "CCO.._RDF",
                      input_name_2 = "_CCO",
                      title = "Dynamic Conditional Correlations: ALSI, CCO and RDF",
                      subtitle = "High Volatility, 2018 to 2022",
@@ -593,7 +593,7 @@ Again, the same graphing function using ggplot is used for these results.
 
 ```{r}
 
-graph_rename_func_mv(input_name_1 = "CCO",
+graph_rename_func_mv(input_name_1 = "CCO.._RDF",
                      input_name_2 = "_CCO",
                      title = "Dynamic Conditional Correlations: ALSI, CCO and RDF",
                      subtitle = "Low Volatility, 2018 to 2022",
