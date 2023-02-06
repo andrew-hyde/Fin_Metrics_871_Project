@@ -13,8 +13,6 @@ ALSI_returns_performance <- data_ALSI_returns %>%
         # Make weights sum to 1:
         mutate(across(starts_with("J"), ~./sum(., na.rm=T))) %>%
         summarise(Ret = sum( J203 * Return, na.rm=T)) %>%
-    # mutate( CW = Market.Cap / sum(Market.Cap, na.rm=T)) %>%
-    # summarise(Ret = sum( CW * Return, na.rm=T)) %>%
         mutate(CP = cumprod(1+Ret)) %>%
         mutate(ALSI = CP) %>%
         select(date, ALSI)
@@ -27,8 +25,6 @@ REIT_returns_performance <- data_ALSI_returns %>%
         # Make weights sum to 1:
         mutate(across(starts_with("J"), ~./sum(., na.rm=T))) %>%
         summarise(Ret = sum( J203 * Return, na.rm=T))  %>%
-    # mutate( CW = Market.Cap / sum(Market.Cap, na.rm=T)) %>%
-    # summarise(Ret = sum( CW * Return, na.rm=T)) %>%
         mutate(CP = cumprod(1+Ret)) %>%
         mutate(REIT = CP) %>%
         select(date, REIT)
@@ -41,22 +37,7 @@ df_cum_returns_ALSI_REIT_data <- left_join(ALSI_returns_performance,
 
                                                 gather(Name, Value, -date)
 
-# CHECK WEIGHTS SUM TO 1
-#
-#         alsi_ex_reits <- data_ALSI_returns %>%
-#         filter(Sector %in% "Property") %>%
-#         group_by(date) %>%
-#        #  mutate( CW = Market.Cap / sum(Market.Cap, na.rm=T))# %>%
-#        #  summarise(Ret = sum( CW * Return, na.rm=T))
-#         mutate( CW = Market.Cap / sum(Market.Cap, na.rm=T)) %>%
-#             group_by(date) %>%
-#             mutate(summ = sum(CW))
-#
-# if(alsi_ex_reits$summ != 1){
-#     print("error") } else {
-#         print("all good")
-#     }
-#
+
     #-------------------------------------------------------------------------------
 
     graph <-  ggplot(df_cum_returns_ALSI_REIT_data) +

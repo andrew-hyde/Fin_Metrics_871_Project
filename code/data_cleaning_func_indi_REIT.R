@@ -3,35 +3,50 @@
 data_cleaning_func_indi_REIT <- function(df_data){
 
 
-    library(tidyverse)
+# COMBINE
 
     # ALSI excl. REITs
     ALSI_returns_performance <- data_ALSI_returns %>%
-        filter( !Sector %in% "Property") %>%
-        group_by(date) %>%
+            filter( !Sector %in% "Property") %>%
+            group_by(date) %>%
         # Make weights sum to 1:
         mutate(across(starts_with("J"), ~./sum(., na.rm=T))) %>%
         summarise(ALSI = sum( J203 * Return, na.rm=T)) %>%
+        #mutate(ALSI = mean( J203 * Return, na.rm=T)) %>%
+            # mutate( CW = Market.Cap / sum(Market.Cap, na.rm=T)) %>%
+            # summarise(Ret = sum( CW * Return, na.rm=T)) %>%
+            #mutate(ALSI = Ret) %>%
+            #(Tickers ="ALSI") %>%
+            select(date, ALSI)
 
-        select(date, ALSI)
+# REITs_Selected <- list("CCO"," EMI", "GRT", "HPB","HYP","IPF","OCT", "RDF", "RES", "SAC", "VKE")
 
     # REITs
     REIT_returns_performance <- data_ALSI_returns %>%
-        filter( Sector %in% "Property") %>%
-        group_by(date) %>%
+            filter( Sector %in% "Property") %>%
+            group_by(date) %>%
+            #na.omit(J203) %>%
+            # mutate( CW = Market.Cap / sum(Market.Cap, na.rm=T)) %>%
+            # mutate(Return = CW* Return)  %>%
+            # Make weights sum to 1:
+            na.omit(J203) %>%
+            mutate(across(starts_with("J"), ~./sum(., na.rm=T))) %>%
+            mutate(Return = J203 * Return)  %>%
+            # mutate( CW = Market.Cap / sum(Market.Cap, na.rm=T)) %>%
+            # summarise(Ret = sum( CW * Return, na.rm=T)) %>%
+            #mutate(REIT = Ret) %>%
+            select(date, Tickers, Return) %>%
+                spread(Tickers, Return)
 
-        na.omit(J203) %>%
-        mutate(across(starts_with("J"), ~./sum(., na.rm=T))) %>%
-        mutate(Return = J203 * Return)  %>%
 
-        select(date, Tickers, Return) %>%
-        spread(Tickers, Return)
+            # select the columns that correspond to the following REITs equities.
+            # REITs to include: CCO, EMI, GRT, HYP, RDF, RES, SAC
+            data_alsi_REIT_reduced <- REIT_returns_performance[, c(1,25,29,42,44,48,55)]
+            #data_alsi_REIT_reduced <- REIT_returns_performance[, c(1,18,25,42,55)]
+            #data_alsi_REIT_reduced <- REIT_returns_performance[, c(1,13,18,25,29,42,44,48,55)]
 
-
-    # select the columns that correspond to the following REITs equities.
-    # REITs to include: CCO, EMI, GRT, HYP, RDF, RES, SAC
-    data_alsi_REIT_reduced <- REIT_returns_performance[, c(1,25,29,42,44,48,55)]
-
+            #data_alsi_REIT_red <- data_alsi_REIT_reduced %>%
+                #gather(Tickers, Return, -date)
 
 #-------------------------------------------------------------------------------
 

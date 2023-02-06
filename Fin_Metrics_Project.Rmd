@@ -3,7 +3,7 @@
 # Remove comments and add values where applicable.
 # The descriptions below should be self-explanatory
 
-title: "Time-varying Correlation of South African Property Stocks and the JSE All Share Weighted Index"
+title: "Time-varying Correlation of South African Property Stocks (REITs) and the JSE FTSE All Share Index (ALSI)"
 #subtitle: "This will appear as Right Header"
 
 documentclass: "elsarticle"
@@ -92,7 +92,7 @@ output:
     fig_width: 3.5 # Adjust default figure sizes. This can also be done in the chunks of the text.
     fig_height: 3.5
 abstract: |
-  This analysis of the current yield spreads in the local bond market places the current high spreads into historical context.
+  The study investigates the strong performance of South African property returns stocks after the REITs legislation came into affect in 2013 as well as the subsequent loss of value of property stocks experience from 2018. Additionally this paper makes use of a DCC GARCH model to explore the relationship between REITs and the rest of the ALSI equities on the Johannesburg Stock Exchange (JSE) to explain the role that REITs or property stocks can serve on a mixed asset portfolio using returns data from the JSE FTSE All Share Index.
 ---
 
 <!-- First: Set your default preferences for chunk options: -->
@@ -112,30 +112,20 @@ pacman::p_load("tidyverse", "devtools", "rugarch", "rmgarch",
     "ggthemes", "ks", "MTS", "robustbase")
 
 ################################################################################
-
 # read in the data
-data_ALSI_returns <- read_rds("data/Alsi_Returns.rds")
+data_ALSI_returns <- read_rds("data/Alsi_Returns.rds") %>% 
+        select(date, Tickers, Return, Sector, J203, Market.Cap) %>% 
+        arrange(date, Tickers)
 # Remove the 'SJ' and 'Equity' from Tickers
 data_ALSI_returns$Tickers <- gsub("SJ|Equity", "", data_ALSI_returns$Tickers)
-# there are many NAs/NaNs that could pose a problem when using the mGARCH model
-# therefore I log the Returns before imputing missing values i.e. NA/NaN
-data_alsi <- data_ALSI_returns %>% 
-    mutate(Weighted_Returns = Return * J433) %>% 
-    select(date, Tickers, Weighted_Returns, Sector, J433) %>% 
-    mutate(Return = log(Weighted_Returns)) %>% 
-    arrange(date, Tickers) 
-    #filter(date >= as.Date("2012-01-01") & date <= as.Date("2022-10-31"))
+# there are many NAs/NaNs that could pose a problem
 
-# always view the data before starting with the analysis
-# replace '-Inf' with NA, so that a value is imputed when the 'impute_missig_value' fucntion is run
-data_alsi[data_alsi == -Inf] <- NA
 
 ################################################################################
 
 # source in fuctions
 list.files('code/', full.names = T, recursive = T) %>% .[grepl('.R', .)] %>% as.list() %>% walk(~source(.))
 
-set.seed(123)
 
 ```
 
@@ -146,58 +136,109 @@ set.seed(123)
 
 # Introduction \label{Introduction}
 
+Real Estate Investment Trusts (REITs) around the world have become a popular investment vehicle to gain exposure to public real estate as an asset class. REITs were first created in the United States in 1960 as an investment vehicle to provide both institutional and retail investors with an accessible means of investing in income-producing real estate (Carstens and Wesson, 2019). What followed was the introduction of REITs in other countries such as Australia, Canada, Germany, Singapore etc. (National Treasury, 2007). Included in this list was South Africa, which introduced this type of listed property investment security in May 2013.
 
+In South Africa, before the introduction of REITs, the most established types of property investment securities listed on the Johannesburg Stock Exchange (JSE) were Property Loan Stocks (PLSs) and Property Unit Trusts (PUTs) (National Treasury, 2007). Both these two types of common property investment vehicles suffered from tax inconsistencies, as PLSs paid capital gains tax on property sales and PUTs did not have this tax incidence (National Treasury, 2007). Overall, the property investment landscape was seen to be restrictive and lacked the regulatory structure to compete for capital on an international scale (Bredell and Boshoff, 2013). The introduction REITs offered investors, both foreign and domestic, greater opportunities to invest in the South African property market.
 
+The reason for the introduction of REITs was the benefits associated with this securities design. REITs offered an accessible, safe, and simple means by which investors could invest in the property market (National Treasury, 2007). The structure of this listed security enhanced its liquidity as it can be traded daily on the JSE and offered predictable income streams, while offering opportunities for diversification (Bredell and Boshoff, 2013). This combined with the tax efficiencies over PUTs and PLSs, saw the number of listed property stocks rise in popularity in South Africa to the extent where today they make included in broader indexes such as the JSE All Share Index (ALSI), JSE Shareholder Weighted Index (SWIX) and JSE FTSE Top 40 Index (Carstens and Wesson, 2019).
 
+The inclusion of REITs in such indexes alongside other traditional listed equities, that share similar regulations, has been questioned given that REITs are subjected to significantly different regulations. SA REITs are required to generate at least 75% of total income from immovable property and 75% of assets held by REITs must be immovable property such as shopping centres, office buildings and residential developments (Bredell and Boshoff, 2013). Additionally, REITs are required to invest in immovable property for the long term as opposed to speculative trading of properties (National Treasury, 2007). Concerning distributions of earnings, REITs are obligated to distribute more than 75% of earnings as dividends. In terms of debt, REITs are subjected to a gearing limit of 60% of debt to gross asset value (National Treasury, 2007).
 
+The structure of the regulations governing REITs made this investment vehicle attractive. The adoption of these regulations had the implication of creating listed securities that offer higher dividends than predecessors property investment vehicles, experience lower volatility due to steady income streams, are seen as a cost-effective means of gaining exposure to property in one’s portfolio, and lower entry and exit costs (Bredell and Boshoff, 2013). Additionally, REITs offer a diversified alternative to directly holding property due to multiple property holdings with a diversified tenant pool and by implication diversified income stream. According to Katzler and Song (2019), public real estate exhibit favorable risk-return characteristics and lower correlations with other financial assets such as equities and fixed income. The qualities that property poses as an asset class can aid in portfolio diversification through matching assets with low correlation profiles or even negative correlation profiles, and therefore provides an advantage of including public real estate in a mixed asset portfolio (Katzler and Song, 2019). The benefit of diversifying one’s portfolio with REITs would then be based on its lower correlation with other assests. While these characteristics do provide an incentive to investors to include REITs as part of a mixed asset portfolio, a question that arises is whether REITs do indeed offer exposure to public property or are more similar to traditional listed equities in terms of their return profiles (Deng, Ding and Fei, 2010). 
+
+The purpose of this paper is twofold. First, to provide an explanation for the strong performance of property returns stocks after the REITs legislation came into effect in 2013 and fro the subsequent loss of value of property stocks experience from 2018. Second, to explore the relationship between REITs and the rest of the ALSI equities on the Johannesburg Stock Exchange (JSE) to explain the role that REITs or property stocks serve on a mixed asset portfolio. More specifically to determine how the conditional correlation between the equity pairs changes over time. The model used to conduct this analysis is a Dynamic Conditional Correlation Generalized AutoRegressive Conditional Heteroskedasticity (DCC GARCH) model on returns data from the JSE FTSE All Share Index to generate time-varying conditional correlation estimates.
+
+The paper is structure as follows: Section 2 provides a literature review and brief analysis of the performance history of REITs. Section 3 describes the data and methodology used in the study. Section 4 provides discusses and presents the results of the analysis. Finally, Section 5 concludes the findings of the paper.
+
+# Historical Performance of South African Property Stocks
+
+In 2013, once the REIT regulation took affect the popularity and performance of SA REITs was the public property sectors inclusion in mixed asset portfolios increase substantially. As seen in Figure 3.1, the cumulative returns of REIT equities performed well and in fact outperformed the rest of the JSE FTSE All Share Index (ALSI) excluding REITs. Given the indexes weights are construction using market capitalization, it is important to bear in mind that the ALSI is heavily weighted in favour of listed companies with large market capitalization of their shares. With sectors such as resources being weighted heavily, due to their market capitalization, then results can be explained by the performance of the resources sector or the commodity cycle. Figure 2.2 provides credence to this insights as the plotted resources cumulative returns closely resembles that of the ALSI seen in Figure 2.1.
+
+From 2013, management of REITs faced a globally competitive environment with high-growth pressure coming from the expected returns of investors (Carstens and Wesson, 2019). Management of REITs responded in two ways to this pressures and these responses can be relate to the REIT legislation. The results was that from 2014 and 2015 SA REITs market capitalization increased by 47% (Carstens and Wesson, 2019).
+
+Firstly, in terms of distributions REITs earnings, pay-out ratios from 2013 to 2018 were at 100% despite the minimum requirement of 75%. According to Head of STANLIB Listed Property, Keillen Ndlovu (2019), since the introduction of REITs typically 100% of earnings were distributed to investors whereas in other countries typically only paid out between 75% and 90%. This ended in 2018 when Delta Property Fund decaresed their pay-out to the minimum of 75% (Ndlovu 2019). Thus, SA REITs have not made use of earnings to fund portions of their operations or services debt in an attempt to bolster share prices and have instead finance expansion through debt.
+
+Secondly, the average debt to gross asset ratio of the vast majority of REITs increased from a low of 27% to 40% by July 2019 (Ndlovu, 2019), bearing in mind that the limit is 60%. Given the market’s search for returns, SA REITS expanded their gross asset holding considerably through acquisitions and new developments particularly in the commercial and retail property spaces (Carstens and Wesson, 2019). This resulted in increased share price returns for investors as high future income growth was priced in as the rapid expansion progressed. What soon became the case was that the South African market became over supplied with commercial and retail properties and REITs undertook purchases of foreign property assets to diversify their own income streams and by 2019, global exposure of the SA REIT market was 47% from being virtually zero a decade prior (Ndlovu, 2019).
+
+By 2018, the SA REIT market was heavily indebted and unable to lease out the oversupplied commercial and retail space. Investors had started pricing in declining growth of future rental income streams and at the time interest had increased with the repo rate increasing from 5% in 2013 to a year high of 6.75% in 2018 (SARB, 2023). In early 2018, concerns mounted for the high debt ratios of REITs given decreases experienced in rental income that lead fund managers to quickly exit positions of REIT holdings driving share prices downwards by doing so (Ndlovu, 2019). What followed was that REITs began to pay of debt and thereby de-leveraging their operations which resulted in decreased dividend payouts with the result being further decreases in the stock prices of REITs and the sector losing over 25% of its value by the end of 2018 (Ndlovu, 2019). In 2020, REITs experienced a further blow as the COVID-19 pandemic reduced the demand of office space as hybrid work models were established and the pace at which retailers expanded there online stores increased rapidly, and subsequently the demand for retail space fell as well. Figure 2.3 highlights these developments in the REITs sector through plotting the noise reduced volatility of property stocks over time.
+
+```{r message=FALSE, warning=FALSE, fig.cap="Cumulative Returns"}
+
+library(tidyverse)
+
+# ALSI and REIT, cumulative return
+
+graph_cum_return_func(df_data = data_ALSI_returns,
+                      title = "Cumulative Returns of ALSI",
+                      subtitle = "From 2005 to 2022",
+                      caption = "REITS vs ALSI excl. REITS",
+                      xlabel = "Date",
+                      ylabel = "Cumulative Return")
+
+```
+
+## Initial Analysis of the REITs Sector
+
+The South African ALSI is heavily weighted by resources and the performance of resource stocks can be explained by the time line of the the commodity price cycle as these stock prices are heavily influenced by the prices of the commodities they produce and sell. Prior to the Global Financial Crisis (GFC) in 2008 the demand for commodities was high during this period often referred to as the end of the great moderation as economies around the world experiencing substantial increases in economic growth and infrastructure developments. After 2008, global demand for commodities did not experience the same growth as they did prior to the GFC. After the COVID pandemic the demand for resources increased substantially and the performance of resources stocks improve in kind.
+
+From Figure 2.2, the cumulative returns of resources and property stocks appear to move in opposite directions. A possible explanation maybe be related to property building costs and the logic would be as follows. When commodity or resources prices are cheap the cost to construct property is lower and therefore REITs would perform well with some lag. However, upon further investigation this does not seem plausible as the dynamic condition correlation between the property and resources, which is displayed in Figure 4.2, is significantly low but this cannot be entirely dismissed unless the correlation structure is explored between returns of resources and lagged property stock returns.
+
+```{r message=FALSE, warning=FALSE, fig.cap="Cumulative Returns"}
+
+library(tidyverse)
+
+# ALSI and REIT, cumulative return
+
+sector_graph_cum_return_func(df_data = data_ALSI_returns,
+                      title = "Cumulative Returns of ALSI by Sector",
+                      subtitle = "From 2005 to 2022",
+                      caption = "",
+                      xlabel = "Date",
+                      ylabel = "Cumulative Return")
+
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+# use dccPre to fit the univariate GARCH models to each series in the data frame of returns.
+# Let's select a VAR order of zero for the mean equation, and use the mean of each series.
+
+# Then, for every series, a standard univariate GARCH(1,1) is run - giving us:
+# et and sigmat, which is then used to calculate the standardized resids, zt.
+# zt is used in DCC calcs after.
+
+# SEE: q6_nested_graph_function.R (NESTED FUNC)
+# result
+Vol_ALSI_REIT <- compare_vol_mv_garch_func(df_data)
+
+```
+
+When comparing noise reduce volatility in Figure 2.3, the All Share Index in South Africa experiences lower levels of volatility from 2005 to 2013. After 2013, SA REITs returns begin to experience highly volatile periods until the end of the sample period. From Figure 2.3, since 2013 there have have been four distinct spikes in volatility. The first being around the time the REIT regulation taking affect in May 2013 (Treasury, 2007). The second coinciding with the introduction of three REITs into the JSE FTSE Top 40 Index, taking the total number of REITs included in the index to five (Carstens and Wesson, 2019). The third, occurring in 2018 when REIT share prices lost considerable value (Ndlovu, 2019). Finally, the fourth inline with the COVID pandemic timeline and the lock down that took place.
+
+```{r message=FALSE, warning=FALSE, fig.cap="Noise Reduced Volatility"}
+# volatility of REITs
+mv_garch_COMBINED_nested_function(Vol_ALSI_REIT)
+
+```
 
 # Data and Methodology \label{Methodology}
 
 ## Data
 
-The dataset used in this study is the ALSI returns data from 2005 to 2022, which included both traditional equities and REITs. Investigation into the data reveals that there are four unique sectors in the data, namely; Financials, Industrials, Resources and Property. There are missing values present in the dataset.
+The dataset used in this study is the JSE FTSE ALSI returns data from 2005 to 2022, which included both traditional equities and REITs. An investigation into the data reveals that there are four unique sectors in the data, namely; Financials, Industrials, Resources and Property. The JSE FTSE ALSI is the primary share index of the South Africa market. The share index represents approximately the 99% of the largest companies subject to subject to minimum liquity and free float standards, where each listed company is weighted by its own market capitalisation against the summation of the market capitalisations of all companies within the index (FTSE Russel, 2023).
 
-Given that the objective of this study is to explore the time varying correlation between the ALSI equities and REITs missing data poses a problem. To address this concern, the dataset is separated into two groups, one group for ALSI equities and the other for REITs. Next, the problem of missing values is dealt with by imputing values for both groups separately.
-
-Separating the data into two groups, before imputing values, is done to preserve the properties and distribution elements of the ALSI returns and REIT returns. With that in mind, missing values for the ALSI equities are imputed using returns distribution draw from the collective ALSI group less REITs. Missing values for each REIT equity are imputed using the returns distribution of that equity. This is done to enable analysis of correlation between REITS, as well as with the rest of the ALSI equities. The code used in this section follows a practical covered in Financial Econometrics 871 (Katzke, 2022b).
-
-Figure 2.1 displays the available data for each REIT. Based on availability of data the following REITs are selected: Capital & Counties Properties PLC, Emira Property Fund Limited, Hyprop Investments Limited, Growthpoint Properties Limited, Resilient Reit Limited, Redefine Properties Limited and SA Corporate Real Estate Limited.
-
-Given that this analysis is conducted to explore the time-varying correlation relationships of equity pairs, returns data is log transformed and mean scaled so that the data used conforms to a normal distribution centered around its mean. This is especially important as this allows one to make inferences based on statistical assumptions.
-
-```{r message=FALSE, warning=FALSE, fig.cap="REITs Dataset"}
-
-library(tidyverse)
-
-# add individual property stock and their weighted returns to perform DCC
-property_returns <- data_ALSI_returns %>%
-        filter(Sector == "Property") %>%
-        select(date, Tickers, Return, J433, Sector) %>%
-        na.omit(J433) %>% # remove observations that don't have weights i.e. NA
-        arrange(date, Tickers) %>%
-        select(date, Tickers, Return)
-
-
-graph_1 <- graph_1_reit_funcs(df_data = property_returns,
-                title = "JSE listed REITs over time ",
-                subtitle = "",
-                caption = "Note how many REITs have complete data sets",
-                xlabel = "",
-                ylabel = "")
-
-graph_1
-
-```
+The Figure in Annexure A, displays the available data for each REIT. In the second half of the analysis Based on availability of data the following REITs are selected: Capital & Counties Properties PLC, Hyprop Investments Limited, Growthpoint Properties Limited, Resilient Reit Limited, Redefine Properties Limited, SA Corporate Real Estate Limited and Vukile Property Fund Limited.
 
 ## Methodology
-A Dynamic Conditional Correlation Generalized AutoRegressive Conditional Heteroskedasticity (DCC GARCH) model is used to perform this analysis. This model allows for the estimation of time-varying conditional correlation structures that are noise reduced, taking the GARCH(1,1) model further by allowing for multivariate volatility modeling (Engle, 2002; Katzke, 2022d).
 
-The DCC model makes use of non-Linear combinations of univariate GARCH models to directly model the correlations as a dynamic time-varying process i.e. estimating the conditional correlation matrix directly (Engle, 2002).
+A Dynamic Conditional Correlation Generalized AutoRegressive Conditional Heteroskedasticity (DCC GARCH) model is used to perform this analysis. This model allows for the estimation of time-varying conditional correlation structures that are noise reduced, taking the GARCH(1,1) model further by allowing for multivariate volatility modeling (Engle, 2002; Katzke, 2022c).
+
+The DCC model makes use of non-Linear combinations of univariate GARCH models to directly model the correlations as a dynamic time-varying process i.e. estimating the conditional correlation matrix directly (Engle, 2002)
 
 The DCC GARCH model follows a two-step approach.
 
 ### Step One
-Estimates are obtained by fitting a univariate GARCH(1,1) model to the residuals of the vector autoregression (VAR) using the combined imputed data. The VAR allows for the examination of relationships between series over time and the residuals it produces $\alpha_{t}$ can be broken down into the structural volatility component $z_{t}$ and the noise component $\mu_{t}$, provided $\alpha_{t}$ are white noise errors/residuals Katzke, 2022c). 
+Estimates are obtained by fitting a univariate GARCH(1,1) model to the residuals of the vector autoregression (VAR) using the combined imputed data. The VAR allows for the examination of relationships between series over time and the residuals it produces $\alpha_{t}$ can be broken down into the structural volatility component $z_{t}$ and the noise component $\mu_{t}$, provided $\alpha_{t}$ are white noise errors/residuals Katzke, 2022b). 
 
 The DCC GARCH model is defined as follows:
 
@@ -250,81 +291,31 @@ and used in fitting a DCC model for $\eta_{t}$ (Katzke, 2022c).
 $$
 \eta_{i, t}=\frac{\hat{\alpha_{i, t}}}{\hat{\sigma_{i, t}}}
 $$
-The DDC GARCH model is run twice. The first iteration models the time-varying conditional correlation structure between the ALSI and REITs, as well as the time-varying correlation structure between the seven individual REITs included in the study. The analysis makes use of the average ALSI weighted returns and the weighted returns of the included REITs as to compare the conditinal correlation of variables that have been transformed in the same way. The code used in this section follows a practical covered in Financial Econometrics 871 and produces graphs of the time-varying correlations between pairs (Katzke, 2022c)
 
-The second applies a stratification method to the data before the DCC GARCH model is re-run. The stratification methods enables one to examine how these time-varying conditional correlation structure change in periods of low and high volatility. The stratification technique is used to isolate return dates when South African markets experienced high levels of volatility. To do this, the South African Rand is used as a benchmark index and is filtered for its own top and bottom decile quantile (10%) by monthly standard deviation of Rand volatility. These dates are then used to filter the ALSI_returns into dates with low and high volatility. The code used in this section follows a practical covered in Financial Econometrics 871 and produces graphs of the time-varying correlations between pairs (Katzke, 2022a).
+The DDC GARCH model is run twice. The first iteration models the time-varying conditional correlation structure between the ALSI and REITs, as well as the time-varying correlation structure between the seven individual REITs included in the study.The second applies a stratification method to the data before the DCC GARCH model is re-run. The stratification methods enables one to examine how these time-varying conditional correlation structure change in periods of low and high volatility.
 
-Following the stratification, the time-varying conditional correlation structure is mapped between Capital & Counties Properties PLC (Capco/CCO) and both the ALSI and other SA listed REITs. This section further explores the relationship between Capital & Counties Properties PLC, a UK based REIT and Redefine Properties Limited, an SA based REIT, whom are both listed on the JSE. The section produces graphs of the time-varying correlations between pairs to make inferences.
+The stratification technique is used to isolate return dates when South African markets experienced high levels of volatility. To do this, the South African Rand is used as a benchmark index and is filtered for its own top and bottom quantile (20%) by monthly standard deviation of Rand volatility. These dates are then used to filter the ALSI_returns into dates with low and high volatility. The code used in this section follows a practical covered in Financial Econometrics 871 (Katzke, 2022a).
+
+Following the stratification, the time-varying conditional correlation structure is mapped between Capital & Counties Properties PLC (Capco/CCO) and both the ALSI and other SA listed REITs. This section further explores the relationship between Capital & Counties Properties PLC, a UK based REIT and Redefine Properties Limited, an SA based REIT, whom are both listed on the JSE.
 
 
 # Results and Discussion \label{Results}
 
-```{r include=FALSE}
-################################################################################
-# IMPUTE DATA: ALSI less REIT.
-################################################################################
-
-# create a data set where property stocks have been removed from the Alsi_Returns data and re-weighted.
-# Now impute missing values using the 'impute_missing_values' function
-
-imputed_ALSI_returns_spread <- impute_missing_returns(
-    
-    return_mat = data_alsi %>% 
-        filter(Sector != "Property") %>%
-        select(date, Tickers, Return) %>% 
-        arrange(date) %>% 
-        select(date, Tickers, Return) %>% 
-        spread(Tickers, Return),
-        
-    impute_returns_method = "Drawn_Distribution_Collective")
-
-
-################################################################################
-# IMPUTE DATA: ALSI less REIT.
-################################################################################
-
-
-data_alsi_REIT <- data_alsi %>%
-        filter(Sector == "Property") %>%
-        select(date, Tickers, Return) %>%
-        spread(Tickers, Return)
-
-
-# select the columns that correspond to the following REITs equities.
-# REITs to include: CCO, EMI, GRT, HYP, RDF, RES, SAC
-data_alsi_REIT_red<- data_alsi_REIT[, c(1,14,19,26,30,45,47,52)]
-# Remember to include the date column
-# the dplyr func 'filter' nor the 'select' (once spread) did not work
-# the therfore diverted to base R to filter for the REITs that had data for decade
-
-# make tidy format once again
-data_alsi_REIT_reduced <- data_alsi_REIT_red %>% 
-                            gather(Tickers, Return, -date)
-
-# Now impute missing values using the 'impute_missing_values' function
-imputed_REIT_returns_spread <- impute_missing_returns(
-    
-    return_mat = data_alsi_REIT_reduced %>%
-        select(date, Tickers, Return) %>%
-        spread(Tickers, Return),
-        
-    impute_returns_method = "Drawn_Distribution_Own")
-
-#-------------------------------------------------------------------------------
-
-# Use the cleaning func to warngle data and get into 'xts' format
-xts_ALSI_data_combined_use <- data_cleaning_func(df_data)
-
-
-```
-
+The following sections explores the results of the DCC GARCH model for different iterations of input data to explore the time-varying correlations of REITs. This section follows a top-down approach exploring the time-varying relationship between REITs and the ALSI as a whole, correlation between individual JSE listed REITS, periods of low and high volatility and between individual JSE listed REITs with the bulk of there operations in different geographic areas such as countries.
 
 ## Time-varying Correlation: REITs and ALSI
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 # DCC GARCH model
 
-DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = F, p = 0)
+################################################################################
+# Sum ALSI vs Sum REITs
+################################################################################
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_ALSI_data_combined_use <- data_cleaning_func(df_data)
+
+DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = T, p = 0)
 # After saving now the standardized residuals:
 StdRes <- DCCPre$sresi
 # We can now use these sresids to calculate the DCC model.
@@ -334,48 +325,118 @@ StdRes <- DCCPre$sresi
 detach("package:tidyverse", unload=TRUE)
 detach("package:tbl2xts", unload=TRUE)
 DCC <- dccFit(StdRes, type="Engle")
-pacman::p_load("tidyverse", "rmsfuns", "fmxdat", "tbl2xts", "broom")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+
+```
+
+From the results of the DCC GARCH model plotted in Figure 4.1, the current average correlation of the REITs sector with the JSE FTSE ALSI excluding REITs is approximately between 50% and 60%. This significantly higher from the approximate average correlation coefficient of 0.3 in 2013. What this may reveals is that through there expansion into new developments, acquisition of assets, increased liquid and marker capitalization as well as offshore holdings REITs have come to be more influence by similar macroeconomic variables to other listed equities. What can also be noted from Figure 2.3, is that REITs returns do appear experience more volatility then the ALSI excluding REITs.
+
+```{r message=FALSE, warning=FALSE, fig.cap="Dynamic Conditional Correlations Graph"}
+
+
+graph_rename_func_mv(input_name_1 = "ALSI_",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: JSE ALSI and REITS",
+                     subtitle = "2005 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+
+
+```
+
+A significantly strong relationship exists between the returns of financials and property stocks and has gained strength overtime. This is evident by the results displayed in Figure 4.2, the current approximate average correlation coefficient of  0.6 between the sector pair is stronger than between property returns and resources or industrial. This may be due to the similarities in the way that property and financials operate as both are both asset heavy businesses that make use of considerable amounts of leverage to scale their activities, they both charge semi-fixed rates whether it be interest or rentals that can be subject to escalations due to repo rate increases and finally, both experience economic down due to similar macroeconomic variables in the form of debtor defaults or property vacancies. This should not comes as a surprise as sell-side equity specialists that focus on financials typically cover property as well given there similarity in terms of business models and income structures. Therefore, for the sake of improving diversification one should be mindful what property and financials stocks are held due to this increasing correlation trend and one may consider holding more resources with property if prove to be less correlated when controlled for with a lag.
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# DCC GARCH model
+
+################################################################################
+# ALSI Correlation by Sector
+################################################################################
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_ALSI_data_combined_use <- sector_data_cleaning_func(df_data)
+
+DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = T, p = 0)
+# After saving now the standardized residuals:
+StdRes <- DCCPre$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages, 
+# once detached can now run dccFit
+# when done then tidyr and dplyr 
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC <- dccFit(StdRes, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
 
 ```
 
 
+```{r message=FALSE, warning=FALSE, fig.cap="Dynamic Conditional Correlations Graph"}
+
+
+graph_rename_func_mv(input_name_1 = "Property_",
+                     input_name_2 = "_Property",
+                     title = "Dynamic Conditional Correlations: JSE ALSI by Sector",
+                     subtitle = "2005 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+
+
+```
+
+
+## Individual Propert Stocks
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+
+
+################################################################################
+# Sum ALSI vs Individual REITs
+################################################################################
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_ALSI_data_combined_use <- data_cleaning_func_indi_REIT(df_data)
+
+DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = T, p = 0)
+# After saving now the standardized residuals:
+StdRes <- DCCPre$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages, 
+# once detached can now run dccFit
+# when done then tidyr and dplyr 
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC <- dccFit(StdRes, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+```
+
+The REITs used to plot Figure 4.3 are selected for their long standing in the South African property market. Since the REIT regulation took effect in 2013, have all experience consistent correlation coefficient until the end of 2022. However, it is difficult to provide any analysis about these individual property stocks from this figure. Therefore the analysis turns to the individaul plotting of the time-varying conditional correlation coefficeints of each stocks with the ALSI excluding REITs.
 
 ```{r message=FALSE, warning=FALSE, fig.cap="Dynamic Conditional Correlations Graph"}
 
-graph_rename_func_mv(input_name_1 = "ALSI_",
+graph_rename_func_mv(input_name_1 = "ALSI",
                      input_name_2 = "_ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI",
-                     subtitle = "2008 to 2022",
+                     title = "Dynamic Conditional Correlations: JSE ALSI and Individual REITS",
+                     subtitle = "2013 to 2022",
                      caption = "",
                      xlabel = "",
                      ylabel = "Rho")
 
 ```
 
-
+From these Figures of individual REITs and ALSI plotted below, one can see that this sample's returns reacts similarly at certain points in time to economic events all such as the effects of the national lock down due to the pandemic in early 2020. From these time-varying correlation graphs one can deduce that the returns of Hyprop Investments Limited (HYP) and the ALSI are the least correlated whereas the returns between Growthpoint Properties Limited (GRT) and the ALSI have the highest correlation within this smaller sample. Practically speaking for the sake of diversification in a mixed asset portfolio one would want to opt for HYP over GRT when considering only on the basis of correlation to improve diversification.
 
 ```{r, figures-side, fig.show="hold", out.width="50%"}
-
-graph_rename_func_mv(input_name_1 = "ALSI_CCO",
-                     input_name_2 = "_ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI and CCO",
-                     subtitle = "2008 to 2022",
-                     caption = "",
-                     xlabel = "",
-                     ylabel = "Correlation")
-
-graph_rename_func_mv(input_name_1 = "ALSI_EMI",
-                     input_name_2 = "_ALSI",
-                     title = "Dynamic Conditional Correlations: ALSI and EMI",
-                     subtitle = "2008 to 2022",
-                     caption = "",
-                     xlabel = "",
-                     ylabel = "Correlation")
 
 graph_rename_func_mv(input_name_1 = "ALSI_GRT",
                      input_name_2 = "_ALSI",
                      title = "Dynamic Conditional Correlations: ALSI and GRT",
-                     subtitle = "2008 to 2022",
+                     subtitle = "2013 to 2022",
                      caption = "",
                      xlabel = "",
                      ylabel = "Correlation")
@@ -383,7 +444,7 @@ graph_rename_func_mv(input_name_1 = "ALSI_GRT",
 graph_rename_func_mv(input_name_1 = "ALSI_HYP",
                      input_name_2 = "_ALSI",
                      title = "Dynamic Conditional Correlations: ALSI and HYP",
-                     subtitle = "2008 to 2022",
+                     subtitle = "2013 to 2022",
                      caption = "",
                      xlabel = "",
                      ylabel = "Correlation")
@@ -391,7 +452,7 @@ graph_rename_func_mv(input_name_1 = "ALSI_HYP",
 graph_rename_func_mv(input_name_1 = "ALSI_RES",
                      input_name_2 = "_ALSI",
                      title = "Dynamic Conditional Correlations: ALSI and RES",
-                     subtitle = "2008 to 2022",
+                     subtitle = "2013 to 2022",
                      caption = "",
                      xlabel = "",
                      ylabel = "Correlation")
@@ -399,7 +460,7 @@ graph_rename_func_mv(input_name_1 = "ALSI_RES",
 graph_rename_func_mv(input_name_1 = "ALSI_RDF",
                      input_name_2 = "_ALSI",
                      title = "Dynamic Conditional Correlations: ALSI and RDF",
-                     subtitle = "2008 to 2022",
+                     subtitle = "2013 to 2022",
                      caption = "",
                      xlabel = "",
                      ylabel = "Correlation")
@@ -407,11 +468,18 @@ graph_rename_func_mv(input_name_1 = "ALSI_RDF",
 graph_rename_func_mv(input_name_1 = "ALSI_SAC",
                      input_name_2 = "_ALSI",
                      title = "Dynamic Conditional Correlations: ALSI and SAC",
-                     subtitle = "2008 to 2022",
+                     subtitle = "2013 to 2022",
                      caption = "",
                      xlabel = "",
                      ylabel = "Correlation")
 
+graph_rename_func_mv(input_name_1 = "ALSI_VKE",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI and VKE",
+                     subtitle = "2013 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Correlation")
 
 ```
 
@@ -424,6 +492,10 @@ Given that the high volatility combine imputed ALSI returns data will have large
 Following this methodology of running multiple DCC models on smaller periods of high volatility decreases the run time of the model.
 
 
+### Periods of High and Low Volatility
+
+When comparing the time-varying conditional correlations between the returns of the property sector and the ALSI for periods of high and low South African Rand volatility that there is a considerable differences in correlation coefficients. For periods of high Rand volatility the approximate average correlation is 0.5 whereas for period of low Rand volatility the approximate average correlation is 0.3. Thus, in periods of high Rand volatility macroeconomic events are having a greater effect on REIT returns. Practically speaking the understanding of how this relationship between the returns of the property sector and the ALSI during periods of high and low can inform investors how the level of diversification can change when factors that effect Rand price changes have on their listed property holdings during periods of low and high volatility. These results can be seen in Figures 4.4 and 4.5
+
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
 # Use the cleaning func to warngle data and get into 'xts' format
@@ -433,7 +505,7 @@ xts_HI_Vol_ALSI_data_combined_ <- data_cleaning_func_hi_vol_2008_2022(df_data)
 
 #The DCC model is then run and the estimates of time-varying correlation are produced.
 
-DCC_ <- dccPre(xts_HI_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+DCC_ <- dccPre(xts_HI_Vol_ALSI_data_combined_, include.mean = T, p = 0)
 # After saving now the standardized residuals:
 StdRes_ <- DCC_$sresi
 # We can now use these sresids to calculate the DCC model.
@@ -449,7 +521,8 @@ pacman::p_load("tidyverse", "tbl2xts", "broom")
 ```
 
 
-```{r, fig.cap="Dynamic Conditional Correlations Graph"}
+```{r fig.cap="Dynamic Conditional Correlations Graph"}
+
 hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
                                     input_name_2 = "_ALSI",
                                     title = "Dynamic Conditional Correlations: ALSI and REITs",
@@ -461,46 +534,6 @@ hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
 ```
 
 
-
-```{r message=FALSE, warning=FALSE, include=FALSE}
-
-# Use the cleaning func to warngle data and get into 'xts' format
-xts_HI_Vol_ALSI_data_combined_ <- data_cleaning_func_hi_vol_2020(df_data)
-
-#-------------------------------------------------------------------------------
-
-#The DCC model is then run and the estimates of time-varying correlation are produced.
-
-DCC_ <- dccPre(xts_HI_Vol_ALSI_data_combined_, include.mean = F, p = 0)
-# After saving now the standardized residuals:
-StdRes_ <- DCC_$sresi
-# We can now use these sresids to calculate the DCC model.
-# In order to fit the DCC model detach the tidyr and dplyr packages,
-# once detached can now run dccFit
-# when done then tidyr and dplyr
-detach("package:tidyverse", unload=TRUE)
-detach("package:tbl2xts", unload=TRUE)
-DCC_ <- dccFit(StdRes_, type="Engle")
-pacman::p_load("tidyverse", "tbl2xts", "broom")
-
-
-```
-
-
-```{r, fig.cap="Dynamic Conditional Correlations Graph"}
-hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
-                                    input_name_2 = "_ALSI",
-                                    title = "Dynamic Conditional Correlations: ALSI and REITs",
-                                    subtitle = "Periods of High Rand Volatility, 2020",
-                                    caption = "",
-                                    xlabel = "",
-                                    ylabel = "Rho")
-
-```
-
-
- 
-
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
 # Use the cleaning func to warngle data and get into 'xts' format
@@ -510,7 +543,7 @@ xts_Low_Vol_ALSI_data_combined_ <- data_cleaning_func_Low_vol_2008_2022(df_data)
 
 #The DCC model is then run and the estimates of time-varying correlation are produced.
 
-DCC_ <- dccPre(xts_Low_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+DCC_ <- dccPre(xts_Low_Vol_ALSI_data_combined_, include.mean = T, p = 0)
 # After saving now the standardized residuals:
 StdRes_ <- DCC_$sresi
 # We can now use these sresids to calculate the DCC model.
@@ -526,11 +559,12 @@ pacman::p_load("tidyverse", "tbl2xts", "broom")
 ```
 
 
-```{r, fig.cap="Dynamic Conditional Correlations Graph"}
+```{r fig.cap="Dynamic Conditional Correlations Graph"}
+
 Low_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
                                     input_name_2 = "_ALSI",
                                     title = "Dynamic Conditional Correlations: ALSI and REITs",
-                                    subtitle = "Period of Low Volatility, 2007 to 2022",
+                                    subtitle = "Periods of Low Rand Volatility, 2007 to 2022",
                                     caption = "",
                                     xlabel = "",
                                     ylabel = "Rho")
@@ -538,55 +572,53 @@ Low_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
 ```
 
 
+## Capital & Counties Properties PLC and Redefine Properties Limited
 
+This section applies similar techniques as discussed above between two JSE listed REITs namely, Capital & Counties Properties PLC and Redefine Properties Limited. Capital & Counties Properties PLC is a listed company based in the United Kingdom and focuses on developments in London whereas Redefine Properties Limited is a listed REIT with large South African holdings.
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 
+################################################################################
+# Sum ALSI vs COO and RDF
+################################################################################
+
 # Use the cleaning func to warngle data and get into 'xts' format
-xts_Low_Vol_ALSI_data_combined_ <- data_cleaning_func_Low_vol_2014(df_data)
+xts_ALSI_data_combined_use <- data_cleaning_func_COO_RDF(df_data)
 
-#-------------------------------------------------------------------------------
-
-#The DCC model is then run and the estimates of time-varying correlation are produced.
-
-DCC_ <- dccPre(xts_Low_Vol_ALSI_data_combined_, include.mean = F, p = 0)
+DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = T, p = 0)
 # After saving now the standardized residuals:
-StdRes_ <- DCC_$sresi
+StdRes <- DCCPre$sresi
 # We can now use these sresids to calculate the DCC model.
-# In order to fit the DCC model detach the tidyr and dplyr packages,
+# In order to fit the DCC model detach the tidyr and dplyr packages, 
 # once detached can now run dccFit
-# when done then tidyr and dplyr
+# when done then tidyr and dplyr 
 detach("package:tidyverse", unload=TRUE)
 detach("package:tbl2xts", unload=TRUE)
-DCC_ <- dccFit(StdRes_, type="Engle")
+DCC <- dccFit(StdRes, type="Engle")
 pacman::p_load("tidyverse", "tbl2xts", "broom")
 
+```
+
+For the period June 2018 to October 2022 the conditionally correlation for RDF and the ALIS as well as COO and the ALSI. From Figure 4.6, prior to 2020 there did exist a signification difference in average approximate time-varying correlation coefficient with a coefficient of 0.25 for COO and 0.4 for RDF indicating differences in location of assets and income structures. However, with the onset of the pandemic followed by the high global inflation and tighter monetary policy across the globe the correlation between returns has since narrowed, but towards the end of 2022 the this spread has begun to increase again and COO may offer investors a Rand hedge and further diversification to the ALSI then RDF can offer. Figure 4.7 demonstrates how the average correlation between the returns of COO and RDF have changed over this four year period. It appears as the the correlation coefficient has increased especially since the pandemic. This may confirm that during periods of higher volatility global factors have a greater and more similar affect on returns which can be observed in figures 4.8 and 4.9.
+
+```{r fig.cap="Dynamic Conditional Correlations Graph"}
+
+graph_rename_func_mv(input_name_1 = "ALSI",
+                     input_name_2 = "_ALSI",
+                     title = "Dynamic Conditional Correlations: ALSI, CCO and RDF",
+                     subtitle = "2018 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
 
 ```
 
+```{r fig.cap="Dynamic Conditional Correlations Graph"}
 
-```{r, fig.cap="Dynamic Conditional Correlations Graph"}
-
-Low_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
-                                    input_name_2 = "_ALSI",
-                                    title = "Dynamic Conditional Correlations: ALSI and REITs",
-                                    subtitle = "Period of Low Volatility, 2014",
-                                    caption = "",
-                                    xlabel = "",
-                                    ylabel = "Rho")
-
-```
-
-
-
-## Time-varying Correlation: Capco vs Other REITs and ALSI
-
-```{r, fig.cap="Dynamic Conditional Correlations Graph"}
-
-graph_rename_func_mv(input_name_1 = "CCO.._",
-                     input_name_2 = "_CCO..",
-                     title = "Dynamic Conditional Correlations: Capco, the ALSI and SA REITs",
-                     subtitle = "",
+graph_rename_func_mv(input_name_1 = "CCO.._RDF",
+                     input_name_2 = "_CCO",
+                     title = "Dynamic Conditional Correlations: CCO and RDF",
+                     subtitle = "2018 to 2022",
                      caption = "",
                      xlabel = "",
                      ylabel = "Rho")
@@ -594,12 +626,73 @@ graph_rename_func_mv(input_name_1 = "CCO.._",
 ```
 
 
-```{r, fig.cap="Dynamic Conditional Correlations Graph"}
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+################################################################################
+# Sum ALSI vs COO and RDF
+################################################################################
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_ALSI_data_combined_use <- HI_VOL_data_cleaning_func_COO_RDF(df_data)
+
+DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = T, p = 0)
+# After saving now the standardized residuals:
+StdRes <- DCCPre$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages, 
+# once detached can now run dccFit
+# when done then tidyr and dplyr 
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC <- dccFit(StdRes, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+```
+
+
+```{r fig.cap="Dynamic Conditional Correlations Graph"}
 
 graph_rename_func_mv(input_name_1 = "CCO.._RDF",
                      input_name_2 = "_CCO",
-                     title = "Dynamic Conditional Correlations: Capco and Redefine",
-                     subtitle = "",
+                     title = "Dynamic Conditional Correlations: CCO and RDF",
+                     subtitle = "High Volatility, 2018 to 2022",
+                     caption = "",
+                     xlabel = "",
+                     ylabel = "Rho")
+
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+
+################################################################################
+# Sum ALSI vs COO and RDF
+################################################################################
+
+# Use the cleaning func to warngle data and get into 'xts' format
+xts_ALSI_data_combined_use <- LOW_VOL_data_cleaning_func_COO_RDF(df_data)
+
+DCCPre <- dccPre(xts_ALSI_data_combined_use, include.mean = T, p = 0)
+# After saving now the standardized residuals:
+StdRes <- DCCPre$sresi
+# We can now use these sresids to calculate the DCC model.
+# In order to fit the DCC model detach the tidyr and dplyr packages, 
+# once detached can now run dccFit
+# when done then tidyr and dplyr 
+detach("package:tidyverse", unload=TRUE)
+detach("package:tbl2xts", unload=TRUE)
+DCC <- dccFit(StdRes, type="Engle")
+pacman::p_load("tidyverse", "tbl2xts", "broom")
+
+```
+
+
+```{r fig.cap="Dynamic Conditional Correlations Graph"}
+
+graph_rename_func_mv(input_name_1 = "CCO.._RDF",
+                     input_name_2 = "_CCO",
+                     title = "Dynamic Conditional Correlations: CCO and RDF",
+                     subtitle = "Low Volatility, 2018 to 2022",
                      caption = "",
                      xlabel = "",
                      ylabel = "Rho")
@@ -608,10 +701,55 @@ graph_rename_func_mv(input_name_1 = "CCO.._RDF",
 
 # Conclusion \label{Conclusion}
 
+One potential rationalisation for this low correlation between the selected REITs and other JSE listed equities may be that due to the nature of REITs, that is their diversified income stream. The implication being that REITs receive income from tenants across various industries, whether is be income from commercial or residential properties only adds to the diversification of this income stream. If one industry, other than property, experiences substantial volatility in its return profile, again by the nature of the income stream, the impact of any losses in rental income will be muted by other more stable industries. Thus, the explanation for such low correlation returns structures can be concluded as broad macro volatility experienced by country wide factors such as currency volatility, increased money supply, global or national level recession.
+
+A consideration that must be made is that only when an asset is as liquid as the other assets it is being compared to, may one be able to ascertain whether its true correlation structure with other assets. The research that listed equity receive and considerable transactions by brokers and traders keep prices relatively up to date in terms of prices reflecting new information. Thus, prior to the 2013 REIT legislation it may be that not all relevant information was not priced into property stocks. 
+
+Since the introduction of the REITs legislation the correlation coefficient of returns of the SA REITs sector and the ALSI excluding REITs appears to be increasing over the sample period. This trend may be a result of property stocks having become mode similar to traditional equities post legislation. This may be explained by the increased liquidity in trading REIT shares on exchanges, making REITs more competitive and accessible to foreign makes, increased offshore holdings, debt ratios and greatly increased market capitalization of the sector. That being said REITs do offer investors options to greater diversify their portfolios and provide Rand hedges, however one must consider prevailing macroeconomic conditions not only with the view that it will effect one's portfolio returns, but that these conditions will affect how truly diversified a portfolio is.
+
 \newpage
 
 # References {-}
 
+Katzler, S. and Song, H. (2017). Public real estate-correlation and volatility dynamics in the U.K. mixed-asset portfolio. Advanced Research in Scientific Areas, December, Pg 38-47.
+
+Carstens, R. and Wesson, N. (2019). The impact of South African real estate investment trust legislation on firm growth and firm value, South African Journal of Economic and Management Sciences 22(1), Pg 2-8.
+
+Boshoff, D. and Bredell, E. (2013). Introduction of REITs in South Africa Transformation of the Listed Property Sector. Advanced Research in Scientific Areas, December, Pg 2-11.
+
 Engle, R. (2002) Dynamic Conditional Correlation: A Simple Class of Multivariate Generalized Autoregressive Conditional Heteroskedasticity Models. Journal of Business & Economic Statistics, 20, 339-350.
+
+FTSE Russel (2023). FTSE/JSE All Share Index. Available at: https://research.ftserussell.com/Analytics/Factsheets/Home (Accessed: 29 January 2023).
+
+Katzke, N.F. (2022a). Practical 2 Bonus: Stratification Example. Available at: https://www.fmx.nfkatzke.com/posts/2020-08-07-practical-2/notes/practical_2_stratifi (Accessed: 27 January 2023).
+
+Katzke, N.F. (2022b). Practical 7: Multi-variate Volatility Modelling. Available at: https://www.fmx.nfkatzke.com/posts/2020-08-17-practical-7/notes/practical_7 (Accessed: 19 January 2023).
+
+Katzke, N.F. (2022c). Topic 6: Multivariate Volatility Models. Available at: https://www.fmx.nfkatzke.com/posts/2020-08-15-theory5/Notes/Session_5.pdf (Accessed: 30 January 2023).
+
+National Treasury of South Africa. (2007). Reforming the listed property sector in South Africa, response document issued by the National Treasury. Discussion paper, Pretoria, 1-39.
+
+Ndlovu, K. (2019). SA listed property facing challenges. STANLIB. Available at: https://research.ftserussell.com/Analytics/Factsheets/Home (Accessed: 28 January 2023).
+
+South African Reserve Bank: SARB (2023). SELECTED HISTORICAL RATES. Available at: https://www.resbank.co.za/en/home/what-we-do/statistics/key-statistics/selected-historical-rates (Accessed: 28 January 2023).
+
+\newpage
+
+# Annexure A {-}
+
+```{r message=FALSE, warning=FALSE, fig.cap="REITs Dataset"}
+
+library(tidyverse)
+
+# add individual property stock and their weighted returns to perform DCC
+graph_1_reit_funcs(df_data = df_data,
+                title = "JSE listed REITs over time ",
+                subtitle = "",
+                caption = "Note how many REITs have complete data sets",
+                xlabel = "",
+                ylabel = "")
+
+```
+
 
 

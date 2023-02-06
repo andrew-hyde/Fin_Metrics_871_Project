@@ -30,12 +30,8 @@ columns of information.
 I do notice that there are Tickers with missing values and some that
 have not been included in the ALSI as they have zero weights.
 
-I log the data before performing imputing the missing values in the data
-set as I anticipate that it will result in NA/NaN/-Inf. The
-‘impute\_missing\_values’ function can address Nas and Nan, so I will
-set Returns with -Inf to zero.
-
-Next, I source in all the functions to be used to conduct the analysis.
+Next, I source in all the functions built to be used to conduct the
+analysis.
 
 ## Data Insights
 
@@ -89,20 +85,14 @@ property stocks can be drawn with the ALSI equities.
 Across time the number of REITs included in the index changes and there
 are many instances of REITs moving in and out of the index.
 
-One cannot impute missing values for the entire data set together,
-especially given that the purpose of this study is to examine the
-correlation of property stocks with rest of the ALSI. The approach I am
-taking is to separate the property stocks from the rest of the ALSI as
-discussed and then plot out the all the property stocks across time in
-the data set and determine which have sufficiently complete returns
-observations that I may impute accurate values that have a similar
-distributions, so to capture the properties of these property stocks
-(given that the theory surrounding REITs is that should be uncorrelated
-to other equities. Once, I have determined which REITS to include I will
-impute the missing for rest of the ALSI index and then combine the data
-to begin the DCC or mGARCH model.
-
 # Seperate and plot the REITs data
+
+The approach I am taking is to separate the property stocks from the
+rest of the ALSI as discussed and then plot out the all the property
+stocks across time in the data set and determine which have sufficiently
+complete returns observations and this information to be used later to
+select for a sub-sample of REITs. To achiev this format ‘facet wrap’ is
+used do detach each series from one another.
 
     library(tidyverse)
 
@@ -123,62 +113,81 @@ ALSI.
 
 # Cumulative Returns over time
 
+I wrangle THE ALSI returns to create a column of total weighted returns
+per day for the ALSI excl. REITs and REITs filtering for observation by
+sector. Next cumulative returns are calculated before the data is
+wrapped in a graphing function.
+
     graph_cum_return_func(df_data = data_ALSI_returns,
                           title = "Cumulative Returns of ALSI",
                           subtitle = "From 2005 to 2022",
                           caption = "REITS vs ALSI excl. REITS",
                           xlabel = "Date",
-                          ylabel = "Percentage %")
+                          ylabel = "Cumulative Return")
 
 ![](README_files/figure-markdown_strict/unnamed-chunk-6-1.png)
 
-I then proceed to select the following Tickers to include in the study.
-REITs to include: CCO, GRT, HYP, RDF, RES, SAC, VKE.
+The graphing function below makes use of the same technique as above,
+however this process of calculating total daily weighted returns and
+cumulative returns is performed for each sector in the data. Lastly, I
+wrap these opertions inside a graphing function.
 
-Next, I filter the ALSI Property data for the REITs listed above and
-impute the missing values in this filtered data.
+Sectors: Industrials, Financials, Property and Resources.
 
-I now want to bind the rows of the weighted returns of the ALSI with the
-individual property stocks that had previously been removed separated to
-impute the missing values. This will allow for correlation comparisons
-with individual property stocks with the broader performance with the
-ALSI equities for the other sectors.
+    library(tidyverse)
 
-The data wrangling described above is nested in the function
-‘mv\_garch\_COMBINED\_nested\_function(df\_data)’ for the estimated
-volatility.
+    # ALSI and REIT, cumulative return
+
+    sector_graph_cum_return_func(df_data = data_ALSI_returns,
+                          title = "Cumulative Returns of ALSI by Sector",
+                          subtitle = "From 2005 to 2022",
+                          caption = "",
+                          xlabel = "Date",
+                          ylabel = "Cumulative Return")
+
+![](README_files/figure-markdown_strict/unnamed-chunk-7-1.png)
 
 # DCC Model multivariate GARCH model (Time varying correlation)
 
 I follow the practical code closely to render the model. I amend code
 and nested functions inside one another to keep the working document
-neat. I plot the estimates of volatility for each seriesfrom ‘dccPre’.
+neat. I plot the estimates of volatility for each series from ‘dccPre’.
 
-I plot the volatility of JSE listed ALSI and REIT equities included in
-this study.
+A topdown a approach is made use of here to conduct the analysis.
+
+I plot the noise reduce volatility of JSE listed ALSI and REIT equities
+included in this study. This procedure is wrapped in the above function
+and follows the same procedure using the ‘dcc’ package as done below.
 
     # volatility of REITs
     mv_garch_COMBINED_nested_function(Vol_ALSI_REIT)
 
-![](README_files/figure-markdown_strict/unnamed-chunk-8-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-9-1.png)
+
+# Correlation Graphs: Co-movements
 
 The ‘dccPre’ function is use to fit the univariate GARCH models to each
 series in the data and a standard univariate GARCH(1,1) is run which
 produces the error term and sigma, which is then used to calculate the
-standardized residuals used in estimate the DCC model.
+standardized residuals used to estimate correlation coefficients using
+the DCC model.
+
+Packages that interfere with the ‘dcc’ package are removed before
+fitting the model and are added again after.
 
 The DCC model is then run and the estimates of time-varying correlation
-are produced.
+are fitted.
 
-# CORR GRAPHS: Co-movements
+This procedure is run repeatedily changing the input data each so to add
+to the depth of then analysis.
 
-The ‘dccPre’ function is use to fit the univariate GARCH models to each
-series in the data and a standard univariate GARCH(1,1) is run which
-produces the error term and sigma, which is then used to calculate the
-standardized residuals used in estimate the DCC model.
+The model on returns data from the JSE FTSE All Share Index generates
+time-varying conditional correlation estimates that I plot making use of
+some code from class practicals. The code calculates the bivariate
+correlation between all the pairs in our data set and then plots them.
 
-The DCC model is then run and the estimates of time-varying correlation
-are produced.
+input\_name\_1: pair to be included input\_name\_1: pair not to be
+included
 
     graph_rename_func_mv(input_name_1 = "ALSI_",
                          input_name_2 = "_ALSI",
@@ -188,9 +197,32 @@ are produced.
                          xlabel = "",
                          ylabel = "Rho")
 
-![](README_files/figure-markdown_strict/unnamed-chunk-10-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-11-1.png)
 
-# INDIVIDUAL REITS
+This process is repeated for returns data where weighted total daily
+returns have been calculate for each sector and then the conditional
+correlations are estimated using the same method as above. The results
+are then plotted below.
+
+    graph_rename_func_mv(input_name_1 = "Property_",
+                         input_name_2 = "_Property",
+                         title = "Dynamic Conditional Correlations: JSE ALSI by Sector",
+                         subtitle = "2005 to 2022",
+                         caption = "",
+                         xlabel = "",
+                         ylabel = "Rho")
+
+![](README_files/figure-markdown_strict/unnamed-chunk-13-1.png)
+
+# Individual REITs
+
+I then proceed to select the following Tickers to include in the study
+that have data available since the REITs legislation came into affect.
+
+REITs to include: GRT, HYP, RDF, RES, SAC, VKE.
+
+Following the same procedure estimates are estimated, fitted and then
+graphed.
 
     graph_rename_func_mv(input_name_1 = "ALSI",
                          input_name_2 = "_ALSI",
@@ -200,7 +232,12 @@ are produced.
                          xlabel = "",
                          ylabel = "Rho")
 
-![](README_files/figure-markdown_strict/unnamed-chunk-12-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-15-1.png)
+
+For the display of time-varying correlation of individual REITs with the
+ALSI, I plot each pair individually by changing the input name. Also,
+the formatting of this chunk is changed to accommodate the 6 graphs
+plotted together by reducing the size of the plots to 50%.
 
     graph_rename_func_mv(input_name_1 = "ALSI_GRT",
                          input_name_2 = "_ALSI",
@@ -252,33 +289,11 @@ are produced.
 
 <img src="README_files/figure-markdown_strict/figures-side-1.png" width="50%" /><img src="README_files/figure-markdown_strict/figures-side-2.png" width="50%" /><img src="README_files/figure-markdown_strict/figures-side-3.png" width="50%" /><img src="README_files/figure-markdown_strict/figures-side-4.png" width="50%" /><img src="README_files/figure-markdown_strict/figures-side-5.png" width="50%" /><img src="README_files/figure-markdown_strict/figures-side-6.png" width="50%" />
 
-# CAPCO
-
-    graph_rename_func_mv(input_name_1 = "ALSI",
-                         input_name_2 = "_ALSI",
-                         title = "Dynamic Conditional Correlations: ALSI, CCO and RDF",
-                         subtitle = "2018 to 2022",
-                         caption = "",
-                         xlabel = "",
-                         ylabel = "Rho")
-
-![](README_files/figure-markdown_strict/unnamed-chunk-14-1.png)
-
-    graph_rename_func_mv(input_name_1 = "CCO.._RDF",
-                         input_name_2 = "_CCO",
-                         title = "Dynamic Conditional Correlations: CCO and RDF",
-                         subtitle = "2018 to 2022",
-                         caption = "",
-                         xlabel = "",
-                         ylabel = "Rho")
-
-![](README_files/figure-markdown_strict/unnamed-chunk-15-1.png)
-
 # Periods of Rand Volatility
 
-In this section, periods of high USD/ZAR (Dollar Rand) volatility are
-isolated and used as to filter for the ALSI combined and imputed data.
-The premise being that periods of high Rand volatility can act as an
+In this section, periods of high and low USD/ZAR (Dollar Rand)
+volatility are isolated and used as to filter for the ALSI data. The
+premise being that periods of high Rand volatility can act as an
 indicator for high levels of volatility in South Africa financial
 markets and other asset classes. These highly volatile periods are then
 used as an index to filter the returns data for periods where South
@@ -293,7 +308,10 @@ function used will not skip whole year periods.
 Following this methodology of running multiple DCC models on smaller
 periods of high volatility decreases the run time of the model.
 
-# HI VOL
+Here the same procedure is followed to generate co-movement graphs
+however dates are filter for using the Rand volatility dates
+
+Again the same graphing convention is used.
 
     hi_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
                                         input_name_2 = "_ALSI",
@@ -305,7 +323,9 @@ periods of high volatility decreases the run time of the model.
 
 ![](README_files/figure-markdown_strict/unnamed-chunk-17-1.png)
 
-# LOW VOL
+And this is performed for periods of low volatility as well. The only
+thing that changes is the which sets of dates, for high or low vol, are
+used to filter the ALSI data
 
     Low_vol_graph_rename_func_mv(input_name_1 = "ALSI_",
                                         input_name_2 = "_ALSI",
@@ -317,9 +337,42 @@ periods of high volatility decreases the run time of the model.
 
 ![](README_files/figure-markdown_strict/unnamed-chunk-19-1.png)
 
-# CAPCO ALSI HI vs LOW
+# CAPCO and RDF investigation.
 
-# HI
+I now perform the safe operations as perform by slight amending the code
+and naming new functions to call out. Here the individual REITs CCO and
+RDF are selected to analysis co-movements between REITs in different
+countries using the same ‘dcc’ function.
+
+Results are then plotted below using a the same graphing function as
+before compare results with the ALSI.
+
+    graph_rename_func_mv(input_name_1 = "ALSI",
+                         input_name_2 = "_ALSI",
+                         title = "Dynamic Conditional Correlations: ALSI, CCO and RDF",
+                         subtitle = "2018 to 2022",
+                         caption = "",
+                         xlabel = "",
+                         ylabel = "Rho")
+
+![](README_files/figure-markdown_strict/unnamed-chunk-21-1.png)
+
+Here I change the input so to only plot the co-movements between COO and
+RDF.
+
+    graph_rename_func_mv(input_name_1 = "CCO.._RDF",
+                         input_name_2 = "_CCO",
+                         title = "Dynamic Conditional Correlations: CCO and RDF",
+                         subtitle = "2018 to 2022",
+                         caption = "",
+                         xlabel = "",
+                         ylabel = "Rho")
+
+![](README_files/figure-markdown_strict/unnamed-chunk-22-1.png)
+
+Using the same code to stratify the data for high and low Rand
+volatility periods. I know can determine how changes in the Rand effect
+these stocks on an individual level.
 
     graph_rename_func_mv(input_name_1 = "CCO",
                          input_name_2 = "_CCO",
@@ -329,9 +382,13 @@ periods of high volatility decreases the run time of the model.
                          xlabel = "",
                          ylabel = "Rho")
 
-![](README_files/figure-markdown_strict/unnamed-chunk-21-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-24-1.png)
 
-# LOW
+Like with the first stratification the code is reused of periods of low
+volatility as well.
+
+Again, the same graphing function using ggplot is used for these
+results.
 
     graph_rename_func_mv(input_name_1 = "CCO",
                          input_name_2 = "_CCO",
@@ -341,4 +398,4 @@ periods of high volatility decreases the run time of the model.
                          xlabel = "",
                          ylabel = "Rho")
 
-![](README_files/figure-markdown_strict/unnamed-chunk-23-1.png)
+![](README_files/figure-markdown_strict/unnamed-chunk-26-1.png)
